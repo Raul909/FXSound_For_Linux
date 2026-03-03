@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 const PRESETS = [
   "Flat","Music","Movies","Gaming","Podcast",
@@ -120,6 +121,31 @@ export default function App() {
   const applyPreset = (name) => {
     if (!PRESET_EQ[name]) return;
     setPreset(name); setEq([...PRESET_EQ[name]]); setFx({...PRESET_FX[name]});
+    // Apply to backend
+    PRESET_EQ[name].forEach((gain, i) => {
+      invoke('set_eq_band', { band: i, gain }).catch(console.error);
+    });
+  };
+
+  // Sync power state to backend
+  useEffect(() => {
+    invoke('set_power', { enabled: powered }).catch(console.error);
+  }, [powered]);
+
+  // Update EQ band in backend
+  const updateEQBand = (index, value) => {
+    const newEq = [...eq];
+    newEq[index] = value;
+    setEq(newEq);
+    setPreset("Custom");
+    invoke('set_eq_band', { band: index, gain: value }).catch(console.error);
+  };
+
+  // Update effect in backend
+  const updateEffect = (key, value) => {
+    setFx(f => ({ ...f, [key]: value }));
+    setPreset("Custom");
+    invoke('set_effect', { effect: key, value }).catch(console.error);
   };
 
   return (
@@ -175,7 +201,7 @@ export default function App() {
           {tab==="eq" && (
             <>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", gap:4 }}>
-                {EQ_BANDS.map((freq,i) => <EQBand key={freq} freq={freq} value={eq[i]} onChange={v=>{ const n=[...eq]; n[i]=v; setEq(n); setPreset("Custom"); }} disabled={!powered}/>)}
+                {EQ_BANDS.map((freq,i) => <EQBand key={freq} freq={freq} value={eq[i]} onChange={v => updateEQBand(i, v)} disabled={!powered}/>)}
               </div>
               <div style={{ display:"flex", justifyContent:"space-between", marginTop:10, paddingTop:8, borderTop:"1px solid #1a1a1a" }}>
                 <span style={{ fontSize:8, color:"#333" }}>-12 dB</span>
@@ -187,7 +213,7 @@ export default function App() {
           {tab==="fx" && (
             <div style={{ paddingTop:2 }}>
               {[["Fidelity","fidelity"],["Ambiance","ambiance"],["Dynamic Boost","dynamic"],["3D Surround","surround"],["HyperBass","bass"]].map(([lbl,key]) => (
-                <EffectSlider key={key} label={lbl} value={fx[key]} onChange={v=>{ setFx(f=>({...f,[key]:v})); setPreset("Custom"); }} disabled={!powered}/>
+                <EffectSlider key={key} label={lbl} value={fx[key]} onChange={v => updateEffect(key, v)} disabled={!powered}/>
               ))}
             </div>
           )}
@@ -201,6 +227,14 @@ export default function App() {
           </div>
           <span style={{ fontSize:9, color:"#333" }}>PulseAudio · 48kHz</span>
           <span style={{ fontSize:9, color:"#555" }}>{preset.toUpperCase()}</span>
+        </div>
+
+        {/* UI Demo Notice */}
+        <div style={{ background:"#1a1a1a", borderTop:"1px solid #2a2a2a", padding:"10px 14px", textAlign:"center" }}>
+          <span style={{ fontSize:10, color:"#888", display:"block", marginBottom:4 }}>⚠️ UI Demo Only</span>
+          <span style={{ fontSize:9, color:"#555", lineHeight:1.4 }}>
+            This is a visual mockup. Audio processing requires native PulseAudio/PipeWire integration (coming soon).
+          </span>
         </div>
 
       </div>
