@@ -41,7 +41,7 @@
 
 Run the setup script:
 ```bash
-./setup-deps.sh
+./scripts/setup-deps.sh
 ```
 
 Or manually install PulseAudio dev libraries:
@@ -83,9 +83,9 @@ npm run tauri:build
 ```
 
 Output will be in `src-tauri/target/release/bundle/`:
-- **AppImage**: `fxsound-linux_0.1.0_amd64.AppImage`
-- **Deb**: `fxsound-linux_0.1.0_amd64.deb`
-- **RPM**: `fxsound-linux-0.1.0-1.x86_64.rpm`
+- **AppImage**: `fxsound-linux_1.0.0_amd64.AppImage`
+- **Deb**: `fxsound-linux_1.0.0_amd64.deb`
+- **RPM**: `fxsound-linux-1.0.0-1.x86_64.rpm`
 
 ---
 

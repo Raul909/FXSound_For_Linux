@@ -92,13 +92,30 @@ function EffectSlider({ label, value, onChange, disabled }) {
   );
 }
 
-function Visualizer({ powered, tick }) {
+function Visualizer({ powered }) {
+  const [fftData, setFftData] = useState(new Array(32).fill(3));
+
+  useEffect(() => {
+    if (!powered) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const data = await invoke('get_visualizer_data');
+        setFftData(data);
+      } catch (err) {
+        console.error('Failed to get visualizer data:', err);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [powered]);
+
   return (
     <div style={{ background:"#080808", height:52, borderBottom:"1px solid #1e1e1e", display:"flex", alignItems:"flex-end", padding:"0 10px 4px", gap:2, overflow:"hidden" }}>
-      {VIS_SEED.map((base, i) => {
-        const h = powered ? Math.max(3, base + Math.sin((tick+i)*0.4)*8) : 3;
+      {fftData.map((magnitude, i) => {
+        const h = powered ? Math.max(3, magnitude * 0.5) : 3;
         const r = Math.floor(180+(h/48)*75);
-        return <div key={i} style={{ flex:1, borderRadius:"1px 1px 0 0", height:`${h}px`, background:`rgb(${r},${Math.floor(h*1.2)},${Math.floor(h*0.5)})`, transition:"height 0.12s ease", opacity:powered?0.9:0.3, minWidth:2 }}/>;
+        return <div key={i} style={{ flex:1, borderRadius:"1px 1px 0 0", height:`${h}px`, background:`rgb(${r},${Math.floor(h*1.2)},${Math.floor(h*0.5)})`, transition:"height 0.1s ease", opacity:powered?0.9:0.3, minWidth:2 }}/>;
       })}
     </div>
   );
@@ -111,12 +128,6 @@ export default function App() {
   const [fx,      setFx]      = useState({...PRESET_FX["Music"]});
   const [device,  setDevice]  = useState(DEVICES[0]);
   const [tab,     setTab]     = useState("eq");
-  const [tick,    setTick]    = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => setTick(t => t+1), 120);
-    return () => clearInterval(id);
-  }, []);
 
   const applyPreset = (name) => {
     if (!PRESET_EQ[name]) return;
@@ -160,7 +171,7 @@ export default function App() {
             {["#e53935","#fdd835","#43a047"].map((c,i) => <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:c }}/>)}
           </div>
           <span style={{ fontFamily:"'Rajdhani',sans-serif", fontSize:13, fontWeight:700, color:"#e53935", letterSpacing:2 }}>FXSOUND LINUX</span>
-          <span style={{ fontSize:9, color:"#333" }}>v2.0.0</span>
+          <span style={{ fontSize:9, color:"#333" }}>v1.0.0</span>
         </div>
 
         {/* Header */}
@@ -186,7 +197,7 @@ export default function App() {
 
         {/* Visualizer */}
         <div style={{ opacity:powered?1:0.3, transition:"opacity 0.3s" }}>
-          <Visualizer powered={powered} tick={tick}/>
+          <Visualizer powered={powered}/>
         </div>
 
         {/* Tabs */}

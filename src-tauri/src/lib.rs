@@ -1,11 +1,11 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 mod audio;
-use audio::AudioEngine;
+use audio::{AudioEngine, AudioProcessor};
 
 struct AppState {
-    audio_engine: Mutex<AudioEngine>,
+    audio_engine: Arc<Mutex<AudioEngine>>,
 }
 
 #[tauri::command]
@@ -40,6 +40,12 @@ fn get_audio_devices() -> Result<Vec<String>, String> {
     ])
 }
 
+#[tauri::command]
+fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
+    let engine = state.audio_engine.lock().map_err(|e| e.to_string())?;
+    Ok(engine.get_fft_data())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -51,16 +57,29 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Create audio engine
+            let audio_engine = Arc::new(Mutex::new(AudioEngine::new()));
+            
+            // Start audio processor
+            let processor = AudioProcessor::new(Arc::clone(&audio_engine));
+            if let Err(e) = processor.start() {
+                log::error!("Failed to start audio processor: {}", e);
+            } else {
+                log::info!("Audio processor started successfully");
+            }
+
+            // Store state
+            app.manage(AppState { audio_engine });
+
             Ok(())
-        })
-        .manage(AppState {
-            audio_engine: Mutex::new(AudioEngine::new()),
         })
         .invoke_handler(tauri::generate_handler![
             set_eq_band,
             set_effect,
             set_power,
-            get_audio_devices
+            get_audio_devices,
+            get_visualizer_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
