@@ -41,16 +41,10 @@ fn set_power(state: State<AppState>, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// Return the list of available audio output devices.
+/// Return the list of available audio output devices by querying PulseAudio.
 #[tauri::command]
 fn get_audio_devices() -> Result<Vec<String>, String> {
-    Ok(vec![
-        "Built-in Speakers".to_string(),
-        "Headphones (3.5mm)".to_string(),
-        "USB Audio Device".to_string(),
-        "HDMI Audio".to_string(),
-        "Bluetooth Headset".to_string(),
-    ])
+    audio::get_pulse_sinks().map_err(|e| format!("Failed to get audio devices: {}", e))
 }
 
 /// Return the current FFT magnitude data for the visualizer (32 bins).

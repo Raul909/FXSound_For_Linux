@@ -90,7 +90,7 @@ select option {
 }
 
 .app-window {
-  width: 420px;
+  width: 480px;
   background: #0e0e12;
   border-radius: 18px;
   border: 1px solid #1e1e2a;
@@ -234,39 +234,64 @@ select option {
 
 .visualizer {
   background: #0a0a0f;
-  height: 90px;
+  height: 100px;
   border-bottom: 1px solid #1e1e2a;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
-  padding: 0 14px 10px;
-  gap: 2px;
+  align-content: flex-end;
+  padding: 0 12px 0;
+  gap: 1.5px;
   overflow: hidden;
   position: relative;
 }
 
-.visualizer::after {
+.visualizer::before {
   content: '';
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
   right: 0;
-  height: 20px;
-  background: linear-gradient(to top, rgba(230, 52, 98, 0.04), transparent);
+  height: 100%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(230, 52, 98, 0.06) 0%, transparent 70%);
   pointer-events: none;
+  z-index: 0;
 }
 
 .visualizer__bar {
   flex: 1;
   border-radius: 2px 2px 0 0;
-  transition: height 0.08s ease-out;
+  transition: height 0.06s ease-out;
   min-width: 2px;
   background: #1e1e2a;
   opacity: 0.3;
+  z-index: 1;
 }
 
 .visualizer__bar--active {
-  background: linear-gradient(to top, #b8243e, #e63462, #f7546f);
   opacity: 1;
+}
+
+.visualizer__reflection {
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5px;
+  transform: scaleY(-1);
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.visualizer__bar--reflection {
+  background: linear-gradient(to top, #e63462, #f7546f) !important;
+  border-radius: 2px 2px 0 0;
+  min-width: 2px;
 }
 
 

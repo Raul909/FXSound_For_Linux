@@ -470,3 +470,115 @@ impl AudioProcessor {
         }
     }
 }
+
+// ──────────────────────────────────────────────
+//  PulseAudio Device Detection
+// ──────────────────────────────────────────────
+
+/// Query PulseAudio for available audio output sinks.
+///
+/// Uses the introspection API to list all sinks and return their
+/// human-readable descriptions (e.g. "Built-in Audio Analog Stereo").
+pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
+    use pulse::context::{Context, FlagSet as ContextFlagSet};
+    use pulse::mainloop::threaded::Mainloop;
+    use std::sync::{Arc, Mutex, Condvar};
+    use std::time::Duration;
+
+    // Create a threaded mainloop for the introspection query
+    let mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
+    mainloop.start().map_err(|e| format!("Failed to start mainloop: {}", e))?;
+
+    let context = Context::new(&mainloop, "FXSound Device Query")
+        .ok_or("Failed to create PulseAudio context")?;
+
+    // Lock the mainloop while connecting
+    mainloop.lock();
+    context
+        .connect(None, ContextFlagSet::NOFLAGS, None)
+        .map_err(|e| {
+            mainloop.unlock();
+            format!("Failed to connect context: {}", e)
+        })?;
+
+    // Wait for the context to be ready (up to 5 seconds)
+    let start = std::time::Instant::now();
+    loop {
+        match context.get_state() {
+            pulse::context::State::Ready => break,
+            pulse::context::State::Failed | pulse::context::State::Terminated => {
+                mainloop.unlock();
+                mainloop.stop();
+                return Err("PulseAudio context failed".to_string());
+            }
+            _ => {}
+        }
+        if start.elapsed() > Duration::from_secs(5) {
+            mainloop.unlock();
+            mainloop.stop();
+            return Err("Timeout waiting for PulseAudio context".to_string());
+        }
+        mainloop.wait();
+    }
+
+    // Query sinks using introspection
+    let sinks: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+    let done: Arc<(Mutex<bool>, Condvar)> = Arc::new((Mutex::new(false), Condvar::new()));
+
+    let sinks_clone = Arc::clone(&sinks);
+    let done_clone = Arc::clone(&done);
+
+    let introspector = context.introspect();
+    let _op = introspector.get_sink_info_list(move |result| {
+        match result {
+            pulse::callbacks::ListResult::Item(sink_info) => {
+                let name = sink_info
+                    .description
+                    .as_ref()
+                    .map(|d| d.to_string())
+                    .unwrap_or_else(|| {
+                        sink_info
+                            .name
+                            .as_ref()
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| "Unknown Output".to_string())
+                    });
+                if let Ok(mut list) = sinks_clone.lock() {
+                    list.push(name);
+                }
+            }
+            pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
+                let (lock, cvar) = &*done_clone;
+                if let Ok(mut finished) = lock.lock() {
+                    *finished = true;
+                    cvar.notify_one();
+                }
+            }
+        }
+    });
+
+    // Wait for the sink list query to finish (with timeout)
+    mainloop.unlock();
+    {
+        let (lock, cvar) = &*done;
+        let mut finished = lock.lock().map_err(|e| e.to_string())?;
+        let timeout = Duration::from_secs(3);
+        while !*finished {
+            let result = cvar.wait_timeout(finished, timeout).map_err(|e| e.to_string())?;
+            finished = result.0;
+            if result.1.timed_out() {
+                break;
+            }
+        }
+    }
+
+    mainloop.stop();
+
+    let devices = sinks.lock().map_err(|e| e.to_string())?.clone();
+
+    if devices.is_empty() {
+        Ok(vec!["Default Output".to_string()])
+    } else {
+        Ok(devices)
+    }
+}

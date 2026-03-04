@@ -17,8 +17,23 @@ export default function App() {
   const [preset, setPreset] = useState("Music");
   const [eq, setEq] = useState([...PRESET_EQ["Music"]]);
   const [fx, setFx] = useState({ ...PRESET_FX["Music"] });
+  const [devices, setDevices] = useState(DEVICES);
   const [device, setDevice] = useState(DEVICES[0]);
   const [tab, setTab] = useState("eq");
+
+  // Fetch real audio output devices from the backend on mount
+  useEffect(() => {
+    invoke("get_audio_devices")
+      .then((detected) => {
+        if (detected && detected.length > 0) {
+          setDevices(detected);
+          setDevice(detected[0]);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not detect audio devices, using defaults:", err);
+      });
+  }, []);
 
   // ---------- Preset & Power Logic ----------
 
@@ -85,7 +100,7 @@ export default function App() {
     {
       label: "OUTPUT DEVICE",
       value: device,
-      options: DEVICES,
+      options: devices,
       onChange: setDevice,
       showCustom: false,
     },
