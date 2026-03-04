@@ -18,10 +18,9 @@ FXSound is a popular Windows audio enhancer — but it has **no Linux version**.
 
 ## Screenshots
 
-<p align="center">
-  <img src="./public/screenshots/screenshot-eq.png" alt="FXSound Linux Equalizer" width="400"/>
-  <img src="./public/screenshots/screenshot-effects.png" alt="FXSound Linux Effects" width="400"/>
-</p>
+![FXSound Linux Equalizer](./public/screenshots/screenshot-eq.png)
+
+![FXSound Linux Effects](./public/screenshots/screenshot-effects.png)
 
 ---
 
