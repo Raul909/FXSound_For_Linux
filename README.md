@@ -21,9 +21,12 @@ If you've been searching for **FXSound on Linux**, **an FXSound Linux alternativ
 
 ## Screenshots
 
-| Equalizer | Effects |
-|:---------:|:-------:|
-| ![FXSound Linux Equalizer](./public/screenshots/screenshot-eq.png) | ![FXSound Linux Effects](./public/screenshots/screenshot-effects.png) |
+<p align="center">
+  <img src="./public/screenshots/screenshot-eq.png" alt="FXSound Linux Equalizer" width="400"/>
+  <img src="./public/screenshots/screenshot-effects.png" alt="FXSound Linux Effects" width="400"/>
+</p>
+
+> **Note:** Screenshots show the authentic FXSound UI design with real-time audio processing.
 
 ---
 
