@@ -1,0 +1,18 @@
+pkgbase = fxsound-linux
+	pkgdesc = Audio enhancer with 10-band EQ and effects
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/Raul909/FXSound_For_Linux
+	arch = x86_64
+	license = MIT
+	makedepends = rust
+	makedepends = cargo
+	makedepends = npm
+	makedepends = git
+	depends = webkit2gtk
+	depends = gtk3
+	depends = libpulse
+	source = fxsound-linux-1.0.0.tar.gz::https://github.com/Raul909/FXSound_For_Linux/archive/refs/tags/v1.0.0.tar.gz
+	sha256sums = SKIP
+
+pkgname = fxsound-linux

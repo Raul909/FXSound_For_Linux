@@ -2,23 +2,35 @@ app-id: com.fxsound.linux
 runtime: org.freedesktop.Platform
 runtime-version: '23.08'
 sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.node20
 command: fxsound-linux
-
 finish-args:
   - --socket=pulseaudio
   - --socket=wayland
   - --socket=fallback-x11
   - --share=ipc
   - --device=dri
-
 modules:
   - name: fxsound-linux
     buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node20/bin
+      env:
+        CARGO_HOME: /run/build/fxsound-linux/cargo
+        NPM_CONFIG_CACHE: /run/build/fxsound-linux/npm-cache
     build-commands:
       - npm install
-      - npm run tauri:build
+      - npm run build
+      - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
+      - cargo --offline build --release --manifest-path src-tauri/Cargo.toml
       - install -Dm755 src-tauri/target/release/fxsound-linux /app/bin/fxsound-linux
+      - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.fxsound.linux.png
+      - install -Dm644 com.fxsound.linux.desktop /app/share/applications/com.fxsound.linux.desktop
+      - install -Dm644 com.fxsound.linux.metainfo.xml /app/share/metainfo/com.fxsound.linux.metainfo.xml
     sources:
       - type: git
-        url: https://github.com/YOUR_USERNAME/fxsound-linux.git
+        url: https://github.com/Raul909/FXSound_For_Linux.git
         tag: v1.0.0
+      - generated-sources.json
