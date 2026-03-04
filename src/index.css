@@ -1,4 +1,471 @@
+/* ============================================================
+   FXSound for Linux — Global Styles
+   ============================================================
+   Color palette:
+     --bg-dark:    #0c0c0c  (panel backgrounds)
+     --bg-medium:  #181818  (app background, track fills)
+     --border:     #2b2b2b  (subtle borders)
+     --text-dim:   #666     (secondary text, disabled)
+     --text-light: #b1b1b1  (primary text)
+     --accent:     #e63462  (FXSound red)
+     --accent-alt: #f7546f  (lighter red for gradients)
+     --green:      #28ca42  (active indicator)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
   padding: 0;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+select {
+  appearance: none;
+}
+
+select option {
+  background: #000;
+  color: #b1b1b1;
+}
+
+
+/* ---- App Container & Window ---- */
+
+.app-container {
+  min-height: 100vh;
+  background: #181818;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.app-window {
+  width: 420px;
+  background: #0c0c0c;
+  border-radius: 21px;
+  border: 1px solid #2b2b2b;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+
+/* ---- Title Bar ---- */
+
+.title-bar {
+  background: #0c0c0c;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #2b2b2b;
+  height: 57px;
+}
+
+.title-bar__dots {
+  display: flex;
+  gap: 8px;
+}
+
+.title-bar__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.title-bar__dot--red    { background: #ff5f57; }
+.title-bar__dot--yellow { background: #ffbd2e; }
+.title-bar__dot--green  { background: #28ca42; }
+
+.title-bar__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e63462;
+  letter-spacing: 2.5px;
+}
+
+.title-bar__controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.title-bar__btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* ---- Header (Power + Dropdowns) ---- */
+
+.header {
+  background: #0c0c0c;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #2b2b2b;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.power-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.power-btn--on {
+  background: radial-gradient(circle at 35% 30%, #f7546f, #d51535);
+  border: 3px solid #e63462;
+  box-shadow: 0 0 20px rgba(230, 52, 98, 0.6), 0 4px 12px rgba(213, 21, 53, 0.4);
+}
+
+.power-btn--off {
+  background: #181818;
+  border: 3px solid #2b2b2b;
+  box-shadow: none;
+}
+
+.header__dropdowns {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+/* ---- Dropdown ---- */
+
+.dropdown__label {
+  font-size: 9px;
+  color: #666;
+  letter-spacing: 1.2px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.dropdown__wrapper {
+  position: relative;
+}
+
+.dropdown__select {
+  width: 100%;
+  background: #000;
+  border: 1px solid #2b2b2b;
+  border-radius: 8px;
+  padding: 8px 32px 8px 16px;
+  font-size: 13px;
+  outline: none;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.dropdown__select:disabled {
+  cursor: default;
+}
+
+.dropdown__arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+
+/* ---- Visualizer ---- */
+
+.visualizer {
+  background: #0c0c0c;
+  height: 64px;
+  border-bottom: 1px solid #2b2b2b;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 16px 8px;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.visualizer__bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.15s ease-out;
+  min-width: 3px;
+  background: #2b2b2b;
+  opacity: 0.4;
+}
+
+.visualizer__bar--active {
+  background: linear-gradient(to top, #e63462, #f7546f);
+  opacity: 0.95;
+}
+
+
+/* ---- Tabs ---- */
+
+.tabs {
+  display: flex;
+  background: #0c0c0c;
+  border-bottom: 1px solid #2b2b2b;
+}
+
+.tabs__btn {
+  flex: 1;
+  padding: 14px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #666;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.tabs__btn--active {
+  color: #e63462;
+  border-bottom-color: #e63462;
+}
+
+
+/* ---- Content Area ---- */
+
+.content {
+  padding: 24px 20px;
+  transition: opacity 0.3s;
+  min-height: 280px;
+}
+
+
+/* ---- EQ Panel ---- */
+
+.eq-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.eq-footer {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #181818;
+}
+
+.eq-footer__label {
+  font-size: 9px;
+  color: #666;
+  font-weight: 500;
+}
+
+.eq-footer__title {
+  font-size: 9px;
+  color: #666;
+  font-weight: 600;
+}
+
+
+/* ---- EQ Band (vertical slider) ---- */
+
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  flex: 1;
+}
+
+.eq-band__value {
+  font-size: 10px;
+  color: #b1b1b1;
+  font-weight: 600;
+  min-height: 14px;
+}
+
+.eq-band__track {
+  width: 20px;
+  height: 140px;
+  background: #181818;
+  border-radius: 10px;
+  position: relative;
+  border: 1px solid #2b2b2b;
+}
+
+.eq-band__center-line {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: #2b2b2b;
+}
+
+.eq-band__guide {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.eq-band__thumb {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f7546f, #e63462);
+  border: 2px solid #0c0c0c;
+  box-shadow: 0 2px 8px rgba(230, 52, 98, 0.5), 0 0 0 0 rgba(230, 52, 98, 0.3);
+  z-index: 2;
+}
+
+.eq-band__freq {
+  font-size: 9px;
+  color: #666;
+  font-weight: 500;
+}
+
+
+/* ---- Effect Slider (horizontal) ---- */
+
+.effect-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.effect-slider__label {
+  width: 120px;
+  font-size: 13px;
+  color: #b1b1b1;
+  text-align: right;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.effect-slider__track {
+  flex: 1;
+  height: 6px;
+  background: #181818;
+  border-radius: 3px;
+  position: relative;
+  border: 1px solid #2b2b2b;
+}
+
+.effect-slider__fill {
+  height: 100%;
+  background: linear-gradient(to right, #e33250, #f7546f);
+  border-radius: 3px;
+}
+
+.effect-slider__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f7546f, #e63462);
+  border: 2px solid #0c0c0c;
+  box-shadow: 0 2px 8px rgba(230, 52, 98, 0.5);
+}
+
+.effect-slider__value {
+  width: 32px;
+  font-size: 12px;
+  color: #e63462;
+  flex-shrink: 0;
+  font-weight: 600;
+  text-align: center;
+}
+
+
+/* ---- Effects Panel ---- */
+
+.fx-panel {
+  padding-top: 8px;
+}
+
+
+/* ---- Status Bar ---- */
+
+.status-bar {
+  background: #000;
+  border-top: 1px solid #2b2b2b;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-bar__indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+  transition: all 0.3s;
+}
+
+.status-bar__dot--active {
+  background: #28ca42;
+  box-shadow: 0 0 8px rgba(40, 202, 66, 0.6);
+}
+
+.status-bar__text {
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.status-bar__text--active {
+  color: #28ca42;
+}
+
+.status-bar__info {
+  font-size: 10px;
+  color: #666;
+  font-weight: 500;
+}
+
+.status-bar__preset {
+  font-size: 10px;
+  color: #b1b1b1;
+  font-weight: 600;
 }

@@ -1,3 +1,9 @@
+//! Audio processing engine for FXSound.
+//!
+//! Provides a 10-band equalizer using biquad peak filters, audio effects
+//! (fidelity, dynamic compression, bass boost), and real-time FFT-based
+//! spectrum analysis for the visualizer.
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
@@ -8,110 +14,268 @@ const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
 const FFT_SIZE: usize = 512;
 
+/// Center frequencies for the 10 EQ bands (Hz).
+const EQ_FREQUENCIES: [f32; 10] = [
+    32.0, 64.0, 125.0, 250.0, 500.0,
+    1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+];
+
+// ──────────────────────────────────────────────
+//  Biquad Filter
+// ──────────────────────────────────────────────
+
+/// Second-order IIR (biquad) filter coefficients and state.
+///
+/// Used for peaking EQ filters — each band gets its own biquad
+/// that only boosts/cuts around its center frequency.
+#[derive(Clone)]
+struct BiquadFilter {
+    // Coefficients
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+
+    // Delay line (filter state for two channels)
+    x1: [f32; 2],
+    x2: [f32; 2],
+    y1: [f32; 2],
+    y2: [f32; 2],
+}
+
+impl BiquadFilter {
+    /// Create a peaking EQ filter.
+    ///
+    /// - `freq` — center frequency in Hz
+    /// - `gain_db` — boost/cut in dB (positive = boost, negative = cut)
+    /// - `q` — quality factor (higher = narrower band)
+    /// - `sample_rate` — audio sample rate in Hz
+    fn peaking_eq(freq: f32, gain_db: f32, q: f32, sample_rate: f32) -> Self {
+        let a = 10.0f32.powf(gain_db / 40.0);
+        let w0 = 2.0 * std::f32::consts::PI * freq / sample_rate;
+        let alpha = w0.sin() / (2.0 * q);
+
+        let b0 = 1.0 + alpha * a;
+        let b1 = -2.0 * w0.cos();
+        let b2 = 1.0 - alpha * a;
+        let a0 = 1.0 + alpha / a;
+        let a1 = -2.0 * w0.cos();
+        let a2 = 1.0 - alpha / a;
+
+        // Normalize by a0
+        Self {
+            b0: b0 / a0,
+            b1: b1 / a0,
+            b2: b2 / a0,
+            a1: a1 / a0,
+            a2: a2 / a0,
+            x1: [0.0; 2],
+            x2: [0.0; 2],
+            y1: [0.0; 2],
+            y2: [0.0; 2],
+        }
+    }
+
+    /// Create a flat (pass-through) filter — all coefficients set for unity gain.
+    fn flat() -> Self {
+        Self {
+            b0: 1.0, b1: 0.0, b2: 0.0,
+            a1: 0.0, a2: 0.0,
+            x1: [0.0; 2], x2: [0.0; 2],
+            y1: [0.0; 2], y2: [0.0; 2],
+        }
+    }
+
+    /// Process a single sample through the filter for the given channel.
+    fn process(&mut self, input: f32, channel: usize) -> f32 {
+        let ch = channel % 2;
+        let output = self.b0 * input
+            + self.b1 * self.x1[ch]
+            + self.b2 * self.x2[ch]
+            - self.a1 * self.y1[ch]
+            - self.a2 * self.y2[ch];
+
+        // Shift delay line
+        self.x2[ch] = self.x1[ch];
+        self.x1[ch] = input;
+        self.y2[ch] = self.y1[ch];
+        self.y1[ch] = output;
+
+        output
+    }
+}
+
+// ──────────────────────────────────────────────
+//  Audio Engine
+// ──────────────────────────────────────────────
+
+/// Core audio processing state.
+///
+/// Holds the EQ band gains, effect values, biquad filter instances,
+/// and shared FFT data for the visualizer.
 pub struct AudioEngine {
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
     sample_rate: u32,
-    // Visualizer data
+
+    /// One biquad filter per EQ band — rebuilt when gain changes.
+    filters: Vec<BiquadFilter>,
+
+    /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
+        // Start with flat (0 dB) filters for all 10 bands
+        let filters = EQ_FREQUENCIES
+            .iter()
+            .map(|_| BiquadFilter::flat())
+            .collect();
+
         Self {
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
             sample_rate: SAMPLE_RATE,
+            filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
         }
     }
 
+    /// Set the gain for a single EQ band and rebuild its biquad filter.
     pub fn set_eq_band(&mut self, band: usize, gain: f32) {
-        if band < 10 {
-            self.eq_bands[band] = gain.clamp(-12.0, 12.0);
-            log::info!("EQ Band {} set to {:.1} dB", band, self.eq_bands[band]);
+        if band >= 10 {
+            return;
         }
+        self.eq_bands[band] = gain.clamp(-12.0, 12.0);
+
+        // Rebuild the biquad filter for this band with the new gain
+        // Q factor of 1.4 gives a moderate bandwidth suitable for a 10-band EQ
+        if self.eq_bands[band].abs() < 0.1 {
+            self.filters[band] = BiquadFilter::flat();
+        } else {
+            self.filters[band] = BiquadFilter::peaking_eq(
+                EQ_FREQUENCIES[band],
+                self.eq_bands[band],
+                1.4,
+                self.sample_rate as f32,
+            );
+        }
+        log::info!("EQ band {} set to {:.1} dB", band, self.eq_bands[band]);
     }
 
+    /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
-        log::info!("Effect {} set to {:.1}", effect, clamped);
+        log::info!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
+    /// Toggle audio processing on or off.
+    /// When off, the audio loop outputs silence rather than passthrough
+    /// to avoid doubling the original audio.
     pub fn set_power(&mut self, enabled: bool) {
         self.powered = enabled;
         log::info!("Power: {}", if enabled { "ON" } else { "OFF" });
     }
 
+    /// Return the current FFT magnitude data for the visualizer (32 bins).
     pub fn get_fft_data(&self) -> Vec<f32> {
         self.fft_data.lock().unwrap().clone()
     }
 
-    // Process audio buffer with EQ and effects
-    pub fn process_audio(&self, input: &[f32], output: &mut [f32]) {
-        if !self.powered {
-            output.copy_from_slice(input);
-            return;
-        }
+    // ── Main processing pipeline ──
 
-        // Check if input has actual audio (not just noise/feedback)
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        let rms = rms.sqrt();
-        
-        // If input is too quiet (likely just noise/feedback), output silence
-        if rms < 0.001 {
+    /// Process an audio buffer: apply EQ, effects, limiter, and update the visualizer.
+    ///
+    /// When powered off, the output is filled with silence to prevent
+    /// audio doubling (the original system audio is already playing).
+    pub fn process_audio(&mut self, input: &[f32], output: &mut [f32]) {
+        if !self.powered {
             output.fill(0.0);
             return;
         }
 
+        // Skip near-silent input to avoid amplifying noise
+        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
+        if rms.sqrt() < 0.001 {
+            output.fill(0.0);
+            return;
+        }
+
+        // Apply the 10-band EQ using biquad filters
         self.apply_eq(input, output);
+
+        // Apply audio effects (fidelity, dynamic compression, bass boost)
         self.apply_effects(output);
+
+        // Hard limiter — prevent clipping
+        self.apply_limiter(output);
+
+        // Update FFT data for the visualizer
         self.update_fft(output);
     }
 
-    fn apply_eq(&self, input: &[f32], output: &mut [f32]) {
-        let frequencies = [32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0];
+    // ── EQ Processing ──
+
+    /// Apply all 10 biquad EQ filters in series to the audio buffer.
+    ///
+    /// Each filter only affects frequencies around its center frequency,
+    /// so adjusting the 32 Hz band won't change treble, and vice versa.
+    fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
         output.copy_from_slice(input);
-        
-        for (i, &gain_db) in self.eq_bands.iter().enumerate() {
-            if gain_db.abs() < 0.1 {
+
+        for band in 0..10 {
+            // Skip flat bands for efficiency
+            if self.eq_bands[band].abs() < 0.1 {
                 continue;
             }
-            
-            let gain_linear = db_to_linear(gain_db);
-            let freq = frequencies[i];
-            
-            for sample in output.iter_mut() {
-                *sample *= 1.0 + (gain_linear - 1.0) * self.band_weight(freq);
+
+            // Process each sample through this band's biquad filter
+            // Interleaved stereo: even indices = left, odd = right
+            for (i, sample) in output.iter_mut().enumerate() {
+                let channel = i % (CHANNELS as usize);
+                *sample = self.filters[band].process(*sample, channel);
             }
         }
     }
 
+    // ── Effects Processing ──
+
+    /// Apply audio effects to the buffer.
     fn apply_effects(&self, buffer: &mut [f32]) {
+        // Fidelity: subtle high-frequency harmonic enhancement
         if let Some(&fidelity) = self.effects.get("fidelity") {
             if fidelity > 0.0 {
-                let boost = 1.0 + (fidelity / 100.0) * 0.15;
+                let amount = fidelity / 100.0;
                 for sample in buffer.iter_mut() {
-                    *sample *= boost;
+                    // Soft saturation — adds harmonics that brighten the sound
+                    let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
+                    *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
                 }
             }
         }
 
+        // Dynamic compression: reduces the gap between loud and quiet
         if let Some(&dynamic) = self.effects.get("dynamic") {
             if dynamic > 0.0 {
                 let threshold = 0.7 - (dynamic / 100.0) * 0.3;
+                let ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5; // 2:1 at max
                 for sample in buffer.iter_mut() {
                     if sample.abs() > threshold {
                         let sign = sample.signum();
-                        *sample = sign * (threshold + (sample.abs() - threshold) * 0.5);
+                        let excess = sample.abs() - threshold;
+                        *sample = sign * (threshold + excess * ratio);
                     }
                 }
             }
         }
 
+        // Bass boost: apply gain to low frequencies
+        // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
         if let Some(&bass) = self.effects.get("bass") {
             if bass > 0.0 {
                 let boost = 1.0 + (bass / 100.0) * 0.3;
@@ -120,15 +284,24 @@ impl AudioEngine {
                 }
             }
         }
+    }
 
-        let max = buffer.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
-        if max > 1.0 {
+    // ── Limiter ──
+
+    /// Prevent clipping by normalizing if any sample exceeds ±1.0.
+    fn apply_limiter(&self, buffer: &mut [f32]) {
+        let peak = buffer.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+        if peak > 1.0 {
+            let scale = 1.0 / peak;
             for sample in buffer.iter_mut() {
-                *sample /= max;
+                *sample *= scale;
             }
         }
     }
 
+    // ── Visualizer FFT ──
+
+    /// Compute FFT magnitudes from the output buffer and store for the visualizer.
     fn update_fft(&self, buffer: &[f32]) {
         if buffer.len() < FFT_SIZE {
             return;
@@ -144,6 +317,7 @@ impl AudioEngine {
 
         fft.process(&mut complex_input);
 
+        // Convert to magnitudes, scaled for display (0–100 range)
         let magnitudes: Vec<f32> = complex_input[..32]
             .iter()
             .map(|c| (c.norm() * 100.0).min(100.0))
@@ -153,23 +327,21 @@ impl AudioEngine {
             *fft_data = magnitudes;
         }
     }
-
-    fn band_weight(&self, freq: f32) -> f32 {
-        match freq {
-            f if f < 100.0 => 0.8,
-            f if f < 500.0 => 0.9,
-            f if f < 2000.0 => 1.0,
-            f if f < 8000.0 => 0.95,
-            _ => 0.85,
-        }
-    }
 }
 
-fn db_to_linear(db: f32) -> f32 {
+/// Convert decibels to linear gain.
+fn _db_to_linear(db: f32) -> f32 {
     10.0f32.powf(db / 20.0)
 }
 
-// PulseAudio integration
+// ──────────────────────────────────────────────
+//  PulseAudio Integration
+// ──────────────────────────────────────────────
+
+/// Manages the PulseAudio capture/playback loop.
+///
+/// Captures system audio from the monitor source, runs it through
+/// the AudioEngine for processing, and outputs the result.
 pub struct AudioProcessor {
     engine: Arc<std::sync::Mutex<AudioEngine>>,
 }
@@ -179,6 +351,7 @@ impl AudioProcessor {
         Self { engine }
     }
 
+    /// Start the audio processing loop in a background thread.
     pub fn start(&self) -> Result<(), String> {
         log::info!("Starting PipeWire/PulseAudio processor...");
 
@@ -204,11 +377,15 @@ impl AudioProcessor {
         Ok(())
     }
 
+    /// Main audio capture → process → playback loop.
+    ///
+    /// Reads from the system monitor source (captures all desktop audio),
+    /// processes it through the AudioEngine, and writes to an output stream.
     fn audio_loop(
         engine: Arc<std::sync::Mutex<AudioEngine>>,
         spec: pulse::sample::Spec,
     ) -> Result<(), String> {
-        // Create input stream from monitor (system audio output)
+        // Try to open the monitor source (captures system audio output)
         let input = psimple::Simple::new(
             None,
             "FXSound Input",
@@ -224,9 +401,9 @@ impl AudioProcessor {
         });
 
         let input = match input {
-            Ok(i) => i,
+            Ok(stream) => stream,
             Err(_) => {
-                // Fallback to default source
+                // Fallback: use the default recording source
                 psimple::Simple::new(
                     None,
                     "FXSound Input",
@@ -236,11 +413,11 @@ impl AudioProcessor {
                     &spec,
                     None,
                     None,
-                ).map_err(|e| format!("Failed to create input: {}", e))?
+                ).map_err(|e| format!("Failed to create input stream: {}", e))?
             }
         };
 
-        // Create output stream
+        // Create the playback output stream
         let output = psimple::Simple::new(
             None,
             "FXSound Output",
@@ -250,33 +427,37 @@ impl AudioProcessor {
             &spec,
             None,
             None,
-        ).map_err(|e| format!("Failed to create output: {}", e))?;
+        ).map_err(|e| format!("Failed to create output stream: {}", e))?;
 
         log::info!("Audio streams created successfully");
         log::info!("Processing system audio through FXSound...");
 
         const BUFFER_SIZE: usize = 1024;
-        let mut input_buffer = vec![0u8; BUFFER_SIZE * 4];
-        let mut output_buffer = vec![0f32; BUFFER_SIZE];
+        let mut input_bytes = vec![0u8; BUFFER_SIZE * 4]; // f32 = 4 bytes
+        let mut output_samples = vec![0f32; BUFFER_SIZE];
 
         loop {
-            if let Err(e) = input.read(&mut input_buffer) {
+            // Read raw bytes from the input stream
+            if let Err(e) = input.read(&mut input_bytes) {
                 log::error!("Read error: {}", e);
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 continue;
             }
 
-            let samples: Vec<f32> = input_buffer
+            // Convert bytes to f32 samples
+            let input_samples: Vec<f32> = input_bytes
                 .chunks_exact(4)
                 .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
                 .collect();
 
+            // Process audio through the engine
             {
-                let engine = engine.lock().unwrap();
-                engine.process_audio(&samples, &mut output_buffer);
+                let mut engine = engine.lock().unwrap();
+                engine.process_audio(&input_samples, &mut output_samples);
             }
 
-            let output_bytes: Vec<u8> = output_buffer
+            // Convert f32 samples back to bytes and write to output
+            let output_bytes: Vec<u8> = output_samples
                 .iter()
                 .flat_map(|&f| f.to_le_bytes())
                 .collect();
