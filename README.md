@@ -45,30 +45,42 @@ If you've been searching for **FXSound on Linux**, **an FXSound Linux alternativ
 
 ## Download & Install
 
-### Option 1: Download Pre-built Binary (Recommended)
-
-**Latest Release:** [v1.0.0](https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest)
+### Quick Install (Choose One)
 
 **AppImage (Universal - All Distros):**
 ```bash
-# Download from releases page, then:
+wget https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage
 chmod +x fxsound-linux_1.0.0_amd64.AppImage
 ./fxsound-linux_1.0.0_amd64.AppImage
 ```
 
-**Deb (Ubuntu/Debian/Mint/Pop!_OS):**
+**Debian/Ubuntu/Pop!_OS/Mint:**
 ```bash
-# Download from releases page, then:
+wget https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb
 sudo dpkg -i fxsound-linux_1.0.0_amd64.deb
 ```
 
-**RPM (Fedora/RHEL/openSUSE):**
+**Fedora/RHEL/openSUSE:**
 ```bash
-# Download from releases page, then:
+wget https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest/download/fxsound-linux-1.0.0-1.x86_64.rpm
 sudo rpm -i fxsound-linux-1.0.0-1.x86_64.rpm
 ```
 
-### Option 2: Build from Source
+**Arch Linux (AUR):**
+```bash
+yay -S fxsound-linux
+```
+
+**Flatpak:**
+```bash
+flatpak install flathub com.fxsound.linux
+```
+
+📥 **[Download Latest Release](https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest)**
+
+---
+
+## Build from Source
 
 ```bash
 # Clone the repo
@@ -91,6 +103,8 @@ npm run tauri:build
 chmod +x src-tauri/target/release/bundle/appimage/*.AppImage
 ./src-tauri/target/release/bundle/appimage/*.AppImage
 ```
+
+For detailed build instructions, see **[BUILD.md](./BUILD.md)**
 
 ---
 
@@ -269,13 +283,15 @@ npm run tauri:dev
 - Download AppImage (universal) or Deb/RPM for your distro
 - Install and run
 
+See **[INSTALL.md](./INSTALL.md)** for detailed installation instructions.
+
 ### For Developers
 
 **Build and distribute your own version:**
 
 1. **Build locally:**
    ```bash
-   ./scripts/build-release.sh
+   npm run tauri:build
    ```
 
 2. **Output files:**
@@ -289,21 +305,15 @@ npm run tauri:dev
    git tag v1.0.0
    git push origin v1.0.0
    
-   # Go to GitHub → Releases → New Release
-   # Upload files from src-tauri/target/release/bundle/
+   # GitHub Actions will automatically build and create release
    ```
 
-4. **Automated builds (optional):**
-   - GitHub Actions workflow included (`.github/workflows/release.yml`)
-   - Automatically builds on tag push
-   - Creates release with artifacts
+4. **Alternative distribution channels:**
+   - **Flathub:** Universal Linux package manager
+   - **Snap Store:** Ubuntu's app store
+   - **AUR:** Arch User Repository
 
-**Alternative distribution channels:**
-- **Flathub:** Submit `com.fxsound.linux.yml` to https://flathub.org
-- **Snap Store:** Create snap package and submit to https://snapcraft.io
-- **AUR:** Submit `PKGBUILD` to https://aur.archlinux.org
-
-See [DISTRIBUTION_GUIDE.md](./DISTRIBUTION_GUIDE.md) for detailed instructions.
+See **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** for complete deployment instructions including Flathub, Snap Store, and AUR submission.
 
 ---
 

@@ -7,16 +7,20 @@ on:
 
 jobs:
   release:
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
         platform: [ubuntu-22.04]
     
     runs-on: ${{ matrix.platform }}
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -28,12 +32,22 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libpulse-dev libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libpulse-dev
       
-      - name: Install Node dependencies
-        run: npm install
+      - name: Install frontend dependencies
+        run: npm ci
       
-      - name: Build Tauri app
+      - name: Build the app
         run: npm run tauri:build
       
       - name: Create Release
@@ -42,5 +56,9 @@ jobs:
           files: |
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
