@@ -57,6 +57,16 @@ impl AudioEngine {
             return;
         }
 
+        // Check if input has actual audio (not just noise/feedback)
+        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
+        let rms = rms.sqrt();
+        
+        // If input is too quiet (likely just noise/feedback), output silence
+        if rms < 0.001 {
+            output.fill(0.0);
+            return;
+        }
+
         self.apply_eq(input, output);
         self.apply_effects(output);
         self.update_fft(output);
@@ -170,7 +180,7 @@ impl AudioProcessor {
     }
 
     pub fn start(&self) -> Result<(), String> {
-        log::info!("Starting PulseAudio processor...");
+        log::info!("Starting PipeWire/PulseAudio processor...");
 
         let spec = pulse::sample::Spec {
             format: pulse::sample::Format::F32le,
@@ -198,41 +208,64 @@ impl AudioProcessor {
         engine: Arc<std::sync::Mutex<AudioEngine>>,
         spec: pulse::sample::Spec,
     ) -> Result<(), String> {
+        // Create input stream from monitor (system audio output)
         let input = psimple::Simple::new(
             None,
-            "FXSound",
+            "FXSound Input",
             pulse::stream::Direction::Record,
-            None,
-            "Audio Input",
+            Some("@DEFAULT_MONITOR@"),
+            "Capture System Audio",
             &spec,
             None,
             None,
-        ).map_err(|e| format!("Failed to create input: {}", e))?;
+        ).map_err(|e| {
+            log::warn!("Failed to open monitor source: {}. Trying default source...", e);
+            e
+        });
 
+        let input = match input {
+            Ok(i) => i,
+            Err(_) => {
+                // Fallback to default source
+                psimple::Simple::new(
+                    None,
+                    "FXSound Input",
+                    pulse::stream::Direction::Record,
+                    None,
+                    "Capture System Audio",
+                    &spec,
+                    None,
+                    None,
+                ).map_err(|e| format!("Failed to create input: {}", e))?
+            }
+        };
+
+        // Create output stream
         let output = psimple::Simple::new(
             None,
-            "FXSound",
+            "FXSound Output",
             pulse::stream::Direction::Playback,
             None,
-            "Audio Output",
+            "Processed Audio",
             &spec,
             None,
             None,
         ).map_err(|e| format!("Failed to create output: {}", e))?;
 
-        log::info!("PulseAudio streams created successfully");
+        log::info!("Audio streams created successfully");
+        log::info!("Processing system audio through FXSound...");
 
         const BUFFER_SIZE: usize = 1024;
-        let mut input_buffer = vec![0u8; BUFFER_SIZE * 4]; // 4 bytes per f32
+        let mut input_buffer = vec![0u8; BUFFER_SIZE * 4];
         let mut output_buffer = vec![0f32; BUFFER_SIZE];
 
         loop {
             if let Err(e) = input.read(&mut input_buffer) {
                 log::error!("Read error: {}", e);
-                break;
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                continue;
             }
 
-            // Convert bytes to f32
             let samples: Vec<f32> = input_buffer
                 .chunks_exact(4)
                 .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
@@ -243,7 +276,6 @@ impl AudioProcessor {
                 engine.process_audio(&samples, &mut output_buffer);
             }
 
-            // Convert f32 to bytes
             let output_bytes: Vec<u8> = output_buffer
                 .iter()
                 .flat_map(|&f| f.to_le_bytes())
@@ -251,10 +283,9 @@ impl AudioProcessor {
 
             if let Err(e) = output.write(&output_bytes) {
                 log::error!("Write error: {}", e);
-                break;
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                continue;
             }
         }
-
-        Ok(())
     }
 }

@@ -2,20 +2,19 @@
 
 > A free, open-source audio enhancer for Linux — with a 10-band equalizer, effects, presets, and real-time audio visualization. The Linux alternative to FXSound.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20App-e53935?style=for-the-badge)](https://YOUR_DEPLOY_URL_HERE)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
-[![React](https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react)](https://reactjs.org)
-[![PulseAudio](https://img.shields.io/badge/PulseAudio-Compatible-orange?style=for-the-badge)](https://www.freedesktop.org/wiki/Software/PulseAudio/)
+[![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)](https://reactjs.org)
+[![PipeWire](https://img.shields.io/badge/PipeWire-Compatible-orange?style=for-the-badge)](https://pipewire.org/)
 
 ---
 
 ## What is this?
 
-FXSound is a popular Windows audio enhancer — but it has **no Linux version**. This project is a **full Linux-native recreation** with real PulseAudio audio processing, built with Tauri (Rust + React).
+FXSound is a popular Windows audio enhancer — but it has **no Linux version**. This project is a **full Linux-native recreation** with real PipeWire/PulseAudio audio processing, built with Tauri (Rust + React).
 
 If you've been searching for **FXSound on Linux**, **an FXSound Linux alternative**, or a **free audio equalizer for Linux** — this is it.
 
-**✨ Now with real-time audio processing!** This isn't just a UI mockup — it actually processes your system audio.
+**✨ Real-time audio processing!** This isn't just a UI mockup — it actually processes your system audio through a 10-band EQ and effects.
 
 ---
 
@@ -26,8 +25,6 @@ If you've been searching for **FXSound on Linux**, **an FXSound Linux alternativ
   <img src="./public/screenshots/screenshot-effects.png" alt="FXSound Linux Effects" width="400"/>
 </p>
 
-> **Note:** Screenshots show the authentic FXSound UI design with real-time audio processing.
-
 ---
 
 ## Features
@@ -36,7 +33,7 @@ If you've been searching for **FXSound on Linux**, **an FXSound Linux alternativ
 - 🎛️ **5 Audio Effects** — Fidelity, Ambiance, Dynamic Boost, 3D Surround, HyperBass
 - 🎵 **10 Built-in Presets** — Music, Movies, Gaming, Podcast, Bass Boost, Vocal Boost, Deep Bass, Treble Boost, Night Mode, Flat
 - 📊 **Real-time Audio Visualizer** — FFT-based spectrum display with 32 frequency bins
-- 🔊 **PulseAudio Integration** — Processes system audio in real-time
+- 🔊 **PipeWire/PulseAudio Integration** — Processes system audio in real-time
 - ⚡ **Power Toggle** — instantly bypass all audio processing
 - 🖤 **Authentic FXSound Dark UI** — black and red theme matching the original Windows app
 - 🐧 **Native Linux App** — Built with Tauri (Rust + React) for optimal performance
@@ -45,38 +42,28 @@ If you've been searching for **FXSound on Linux**, **an FXSound Linux alternativ
 
 ## Download & Install
 
-### Quick Install (Choose One)
+### Quick Install
 
 **AppImage (Universal - All Distros):**
 ```bash
-wget https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage
 chmod +x fxsound-linux_1.0.0_amd64.AppImage
 ./fxsound-linux_1.0.0_amd64.AppImage
 ```
 
 **Debian/Ubuntu/Pop!_OS/Mint:**
 ```bash
-wget https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb
 sudo dpkg -i fxsound-linux_1.0.0_amd64.deb
 ```
 
 **Fedora/RHEL/openSUSE:**
 ```bash
-wget https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest/download/fxsound-linux-1.0.0-1.x86_64.rpm
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.0-1.x86_64.rpm
 sudo rpm -i fxsound-linux-1.0.0-1.x86_64.rpm
 ```
 
-**Arch Linux (AUR):**
-```bash
-yay -S fxsound-linux
-```
-
-**Flatpak:**
-```bash
-flatpak install flathub com.fxsound.linux
-```
-
-📥 **[Download Latest Release](https://github.com/YOUR_USERNAME/fxsound-linux/releases/latest)**
+📥 **[Download Latest Release](https://github.com/Raul909/FXSound_For_Linux/releases/latest)**
 
 ---
 
@@ -84,11 +71,15 @@ flatpak install flathub com.fxsound.linux
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/fxsound-linux.git
-cd fxsound-linux
+git clone https://github.com/Raul909/FXSound_For_Linux.git
+cd FXSound_For_Linux
 
-# Install system dependencies
-./scripts/setup-deps.sh
+# Install system dependencies (Ubuntu/Debian)
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+  librsvg2-dev libpulse-dev build-essential curl wget
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Install Node dependencies
 npm install
