@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Manager, State};
 
 mod audio;
 use audio::{AudioEngine, AudioProcessor};

@@ -223,7 +223,7 @@ impl AudioProcessor {
         log::info!("PulseAudio streams created successfully");
 
         const BUFFER_SIZE: usize = 1024;
-        let mut input_buffer = vec![0f32; BUFFER_SIZE];
+        let mut input_buffer = vec![0u8; BUFFER_SIZE * 4]; // 4 bytes per f32
         let mut output_buffer = vec![0f32; BUFFER_SIZE];
 
         loop {
@@ -232,12 +232,24 @@ impl AudioProcessor {
                 break;
             }
 
+            // Convert bytes to f32
+            let samples: Vec<f32> = input_buffer
+                .chunks_exact(4)
+                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                .collect();
+
             {
                 let engine = engine.lock().unwrap();
-                engine.process_audio(&input_buffer, &mut output_buffer);
+                engine.process_audio(&samples, &mut output_buffer);
             }
 
-            if let Err(e) = output.write(&output_buffer) {
+            // Convert f32 to bytes
+            let output_bytes: Vec<u8> = output_buffer
+                .iter()
+                .flat_map(|&f| f.to_le_bytes())
+                .collect();
+
+            if let Err(e) = output.write(&output_bytes) {
                 log::error!("Write error: {}", e);
                 break;
             }
