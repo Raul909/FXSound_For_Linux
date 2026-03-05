@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const BAR_COUNT = 40;
@@ -14,7 +14,7 @@ const BAR_COUNT = 40;
  * Props:
  *   powered — when false, bars flatten and capture stops
  */
-export default function Visualizer({ powered }) {
+function Visualizer({ powered }) {
     const [displayData, setDisplayData] = useState(new Array(BAR_COUNT).fill(2));
     const targetData = useRef(new Array(BAR_COUNT).fill(2));
     const animFrameRef = useRef(null);
@@ -36,9 +36,11 @@ export default function Visualizer({ powered }) {
         analyserRef.current = null;
     }, []);
 
+    // Handle power state changes outside the effect to avoid synchronous setState lint errors
+    // We cannot use useRef for lastPowered because updating it during render is a lint error.
+    // Instead we do this in the effect, and only call cleanupWebAudio() and reset targetData.
     useEffect(() => {
         if (!powered) {
-            setDisplayData(new Array(BAR_COUNT).fill(2));
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
             return;
@@ -55,7 +57,9 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            } catch {
+                // Ignore error, fallback to webaudio
+            }
             return false;
         }
 
@@ -104,7 +108,9 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    } catch {
+                        // Ignore polling errors
+                    }
                 }, 50);
                 return;
             }
@@ -223,6 +229,8 @@ export default function Visualizer({ powered }) {
         </div>
     );
 }
+
+export default memo(Visualizer);
 
 // Resample f32 data (from backend, typically 32 bins) to target count
 function resampleData(data, targetCount) {

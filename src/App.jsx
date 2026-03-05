@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, DEVICES } from "./constants";
@@ -68,23 +68,29 @@ export default function App() {
    * Update a single EQ band — called when the user drags an EQ slider.
    * Marks the preset as "Custom" since it no longer matches any named preset.
    */
-  function updateEQBand(index, value) {
-    const newEq = [...eq];
-    newEq[index] = value;
-    setEq(newEq);
+  const updateEQBand = useCallback((index, value) => {
+    setEq((prevEq) => {
+      if (prevEq[index] === value) return prevEq; // Short-circuit if unchanged
+      const newEq = [...prevEq];
+      newEq[index] = value;
+      return newEq;
+    });
     setPreset("Custom");
     invoke("set_eq_band", { band: index, gain: value }).catch(console.error);
-  }
+  }, []);
 
   /**
    * Update a single effect — called when the user drags an effect slider.
    * Marks the preset as "Custom".
    */
-  function updateEffect(key, value) {
-    setFx((prev) => ({ ...prev, [key]: value }));
+  const updateEffect = useCallback((key, value) => {
+    setFx((prev) => {
+      if (prev[key] === value) return prev; // Short-circuit if unchanged
+      return { ...prev, [key]: value };
+    });
     setPreset("Custom");
     invoke("set_effect", { effect: key, value }).catch(console.error);
-  }
+  }, []);
 
   // ---------- Dropdown Data ----------
 
@@ -196,9 +202,10 @@ export default function App() {
                 {EQ_BANDS.map((freq, index) => (
                   <EQBand
                     key={freq}
+                    index={index}
                     freq={freq}
                     value={eq[index]}
-                    onChange={(val) => updateEQBand(index, val)}
+                    onChange={updateEQBand}
                     disabled={!powered}
                   />
                 ))}
@@ -217,9 +224,10 @@ export default function App() {
               {effectSliders.map(({ label, key }) => (
                 <EffectSlider
                   key={key}
+                  effectKey={key}
                   label={label}
                   value={fx[key]}
-                  onChange={(val) => updateEffect(key, val)}
+                  onChange={updateEffect}
                   disabled={!powered}
                 />
               ))}
