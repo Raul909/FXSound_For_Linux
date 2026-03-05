@@ -1,0 +1,3 @@
+## 2026-03-05 - Custom UI Controls Require Extensive ARIA
+**Learning:** The custom-built equalizer bands and effect sliders visually looked like standard inputs but lacked any semantic meaning or keyboard interactivity for screen readers, breaking fundamental accessibility rules for custom components.
+**Action:** Always ensure that custom controls (like custom sliders) have appropriate ARIA roles (`role="slider"`), bounding values (`aria-valuemin`, `aria-valuemax`, `aria-valuenow`), keyboard navigation (`onKeyDown` for arrow keys), and focus management (`tabIndex=0`). Focus rings (`:focus-visible`) must be added to custom CSS components that were previously only styled for `:hover`.

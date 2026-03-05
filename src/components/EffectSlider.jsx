@@ -52,6 +52,23 @@ export default function EffectSlider({ label, value, onChange, disabled }) {
                 onMouseDown={handleMouseDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                aria-label={`Effect ${label}`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={value}
+                aria-disabled={disabled}
+                tabIndex={disabled ? -1 : 0}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+                        e.preventDefault();
+                        onChange(Math.min(100, value + 5));
+                    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+                        e.preventDefault();
+                        onChange(Math.max(0, value - 5));
+                    }
+                }}
             >
                 {/* Filled portion of the track */}
                 <div
