@@ -152,8 +152,10 @@ select option {
   animation: pulseGlow 2.5s ease-in-out infinite;
 }
 
-.power-btn--on:hover {
+.power-btn--on:hover,
+.power-btn--on:focus-visible {
   transform: scale(1.08);
+  outline: none;
 }
 
 .power-btn--off {
@@ -162,9 +164,11 @@ select option {
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.power-btn--off:hover {
+.power-btn--off:hover,
+.power-btn--off:focus-visible {
   border-color: #2a2a3a;
   transform: scale(1.05);
+  outline: none;
 }
 
 .header__dropdowns {
@@ -410,8 +414,10 @@ select option {
   transition: border-color 0.2s;
 }
 
-.eq-band__track:hover {
+.eq-band__track:hover,
+.eq-band__track:focus-visible {
   border-color: #2a2a3a;
+  outline: none;
 }
 
 .eq-band__center-line {
@@ -445,7 +451,8 @@ select option {
   transition: box-shadow 0.2s, transform 0.15s;
 }
 
-.eq-band__track:hover .eq-band__thumb {
+.eq-band__track:hover .eq-band__thumb,
+.eq-band__track:focus-visible .eq-band__thumb {
   box-shadow: 0 2px 12px rgba(230, 52, 98, 0.7), 0 0 0 3px rgba(230, 52, 98, 0.1);
   transform: translate(-50%, -50%) scale(1.15);
 }
@@ -491,8 +498,10 @@ select option {
   transition: border-color 0.2s;
 }
 
-.effect-slider:hover .effect-slider__track {
+.effect-slider:hover .effect-slider__track,
+.effect-slider__track:focus-visible {
   border-color: #2a2a3a;
+  outline: none;
 }
 
 .effect-slider__fill {
@@ -515,7 +524,8 @@ select option {
   transition: box-shadow 0.2s, transform 0.15s;
 }
 
-.effect-slider:hover .effect-slider__thumb {
+.effect-slider:hover .effect-slider__thumb,
+.effect-slider__track:focus-visible .effect-slider__thumb {
   box-shadow: 0 2px 14px rgba(230, 52, 98, 0.7), 0 0 0 3px rgba(230, 52, 98, 0.1);
   transform: translate(-50%, -50%) scale(1.15);
 }
