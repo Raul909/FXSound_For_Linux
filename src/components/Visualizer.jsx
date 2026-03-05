@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const BAR_COUNT = 40;
@@ -14,7 +14,7 @@ const BAR_COUNT = 40;
  * Props:
  *   powered — when false, bars flatten and capture stops
  */
-export default function Visualizer({ powered }) {
+const Visualizer = memo(function Visualizer({ powered }) {
     const [displayData, setDisplayData] = useState(new Array(BAR_COUNT).fill(2));
     const targetData = useRef(new Array(BAR_COUNT).fill(2));
     const animFrameRef = useRef(null);
@@ -36,11 +36,19 @@ export default function Visualizer({ powered }) {
         analyserRef.current = null;
     }, []);
 
+    // Use an effect to sync the target and current data when unpowered
+    // We avoid calling setState directly here to prevent warning, and instead just set the target
+    // The visualizer loop will animate them down anyway if it is running, but if we need
+    // an immediate flattening, the easiest react-compliant way without the warning is setting
+    // the target data and forcing the first animation frame to handle it.
     useEffect(() => {
         if (!powered) {
-            setDisplayData(new Array(BAR_COUNT).fill(2));
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
+            // Trigger one animation frame to ensure the setDisplayData happens async
+            animFrameRef.current = requestAnimationFrame(() => {
+                setDisplayData(new Array(BAR_COUNT).fill(2));
+            });
             return;
         }
 
@@ -55,7 +63,9 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            } catch {
+                // Ignore error
+            }
             return false;
         }
 
@@ -104,7 +114,9 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    } catch {
+                        // Ignore error
+                    }
                 }, 50);
                 return;
             }
@@ -222,7 +234,7 @@ export default function Visualizer({ powered }) {
             )}
         </div>
     );
-}
+});
 
 // Resample f32 data (from backend, typically 32 bins) to target count
 function resampleData(data, targetCount) {
@@ -250,3 +262,5 @@ function resampleUint8(data, targetCount) {
     }
     return result;
 }
+
+export default Visualizer;

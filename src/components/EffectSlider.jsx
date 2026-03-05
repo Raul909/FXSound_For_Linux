@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 
 /**
  * A horizontal effect slider.
@@ -8,11 +8,12 @@ import { useRef } from "react";
  *
  * Props:
  *   label    — effect name displayed to the left (e.g. "Fidelity")
+ *   effectKey— internal key for this effect
  *   value    — current intensity (0–100)
- *   onChange — callback receiving the new value
+ *   onChange — callback receiving the key and new value
  *   disabled — whether the slider is interactive
  */
-export default function EffectSlider({ label, value, onChange, disabled }) {
+const EffectSlider = memo(function EffectSlider({ label, effectKey, value, onChange, disabled }) {
     const trackRef = useRef(null);
 
     // Convert a mouse X position to an effect value (0–100)
@@ -26,10 +27,10 @@ export default function EffectSlider({ label, value, onChange, disabled }) {
     function handleMouseDown(event) {
         if (disabled) return;
 
-        onChange(xToValue(event.clientX));
+        onChange(effectKey, xToValue(event.clientX));
 
         function handleMouseMove(moveEvent) {
-            onChange(xToValue(moveEvent.clientX));
+            onChange(effectKey, xToValue(moveEvent.clientX));
         }
 
         function handleMouseUp() {
@@ -76,4 +77,6 @@ export default function EffectSlider({ label, value, onChange, disabled }) {
             <span className="effect-slider__value">{value}</span>
         </div>
     );
-}
+});
+
+export default EffectSlider;
