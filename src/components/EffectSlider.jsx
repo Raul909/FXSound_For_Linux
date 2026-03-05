@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 
 /**
  * A horizontal effect slider.
@@ -7,16 +7,19 @@ import { useRef } from "react";
  * The slider maps mouse position to an intensity value between 0 and 100.
  *
  * Props:
+ *   effectKey— key representing the effect
  *   label    — effect name displayed to the left (e.g. "Fidelity")
  *   value    — current intensity (0–100)
- *   onChange — callback receiving the new value
+ *   onChange — callback receiving the key and new value
  *   disabled — whether the slider is interactive
  */
-export default function EffectSlider({ label, value, onChange, disabled }) {
+function EffectSlider({ effectKey, label, value, onChange, disabled }) {
     const trackRef = useRef(null);
+    const valueRef = useRef(value);
 
     // Convert a mouse X position to an effect value (0–100)
     function xToValue(mouseX) {
+        if (!trackRef.current) return 0;
         const rect = trackRef.current.getBoundingClientRect();
         const ratio = (mouseX - rect.left) / rect.width;
         return Math.round(Math.max(0, Math.min(100, ratio * 100)));
@@ -26,10 +29,19 @@ export default function EffectSlider({ label, value, onChange, disabled }) {
     function handleMouseDown(event) {
         if (disabled) return;
 
-        onChange(xToValue(event.clientX));
+        valueRef.current = value;
+        const initialValue = xToValue(event.clientX);
+        if (initialValue !== valueRef.current) {
+            valueRef.current = initialValue;
+            onChange(effectKey, initialValue);
+        }
 
         function handleMouseMove(moveEvent) {
-            onChange(xToValue(moveEvent.clientX));
+            const newValue = xToValue(moveEvent.clientX);
+            if (newValue !== valueRef.current) {
+                valueRef.current = newValue;
+                onChange(effectKey, newValue);
+            }
         }
 
         function handleMouseUp() {
@@ -77,3 +89,5 @@ export default function EffectSlider({ label, value, onChange, disabled }) {
         </div>
     );
 }
+
+export default memo(EffectSlider);

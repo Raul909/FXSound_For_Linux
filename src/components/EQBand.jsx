@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 
 /**
  * A single vertical EQ band slider.
@@ -7,16 +7,19 @@ import { useRef } from "react";
  * The slider maps mouse position to a gain value between -12 dB and +12 dB.
  *
  * Props:
+ *   index    — the index of the band in the array
  *   freq     — frequency label to display (e.g. "32", "1K")
  *   value    — current gain in dB (-12 to +12)
- *   onChange — callback receiving the new gain value
+ *   onChange — callback receiving the index and the new gain value
  *   disabled — whether the slider is interactive
  */
-export default function EQBand({ freq, value, onChange, disabled }) {
+function EQBand({ index, freq, value, onChange, disabled }) {
     const trackRef = useRef(null);
+    const valueRef = useRef(value);
 
     // Convert a mouse Y position to a gain value (-12 to +12 dB)
     function yToGain(mouseY) {
+        if (!trackRef.current) return 0;
         const rect = trackRef.current.getBoundingClientRect();
         const ratio = 1 - (mouseY - rect.top) / rect.height; // 0 at bottom, 1 at top
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
@@ -26,10 +29,19 @@ export default function EQBand({ freq, value, onChange, disabled }) {
     function handleMouseDown(event) {
         if (disabled) return;
 
-        onChange(yToGain(event.clientY));
+        valueRef.current = value;
+        const initialValue = yToGain(event.clientY);
+        if (initialValue !== valueRef.current) {
+            valueRef.current = initialValue;
+            onChange(index, initialValue);
+        }
 
         function handleMouseMove(moveEvent) {
-            onChange(yToGain(moveEvent.clientY));
+            const newValue = yToGain(moveEvent.clientY);
+            if (newValue !== valueRef.current) {
+                valueRef.current = newValue;
+                onChange(index, newValue);
+            }
         }
 
         function handleMouseUp() {
@@ -85,3 +97,5 @@ export default function EQBand({ freq, value, onChange, disabled }) {
         </div>
     );
 }
+
+export default memo(EQBand);

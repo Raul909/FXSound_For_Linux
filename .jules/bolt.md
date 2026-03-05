@@ -1,0 +1,3 @@
+## 2025-03-05 - Continuous Mouse Drag State Spam
+**Learning:** In React components that track mouse movements (`mousemove`), updating the parent's state on *every* mouse move event triggers a re-render of the entire component tree, even if the resulting discrete value (like an integer dB gain) hasn't changed from the previous render. This causes massive performance bottlenecks.
+**Action:** Always maintain the raw drag value locally or check if the discrete value has changed *before* calling the parent's `onChange` callback. Combine this with `React.memo` and `useCallback` so unchanged siblings don't re-render.
