@@ -115,6 +115,8 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
+    fft_processor: Arc<dyn rustfft::Fft<f32>>,
+    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -129,6 +131,9 @@ pub struct AudioEngine {
 
 impl AudioEngine {
     pub fn new() -> Self {
+        let mut planner = FftPlanner::new();
+        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
+        let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
             .iter()
@@ -136,6 +141,8 @@ impl AudioEngine {
             .collect();
 
         Self {
+            fft_processor,
+            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -302,23 +309,19 @@ impl AudioEngine {
     // ── Visualizer FFT ──
 
     /// Compute FFT magnitudes from the output buffer and store for the visualizer.
-    fn update_fft(&self, buffer: &[f32]) {
+    fn update_fft(&mut self, buffer: &[f32]) {
         if buffer.len() < FFT_SIZE {
             return;
         }
 
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(FFT_SIZE);
+        for (i, &val) in buffer[..FFT_SIZE].iter().enumerate() {
+            self.complex_buffer[i] = Complex::new(val, 0.0);
+        }
 
-        let mut complex_input: Vec<Complex<f32>> = buffer[..FFT_SIZE]
-            .iter()
-            .map(|&x| Complex::new(x, 0.0))
-            .collect();
-
-        fft.process(&mut complex_input);
+        self.fft_processor.process(&mut self.complex_buffer);
 
         // Convert to magnitudes, scaled for display (0–100 range)
-        let magnitudes: Vec<f32> = complex_input[..32]
+        let magnitudes: Vec<f32> = self.complex_buffer[..32]
             .iter()
             .map(|c| (c.norm() * 100.0).min(100.0))
             .collect();
@@ -486,10 +489,10 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     use std::time::Duration;
 
     // Create a threaded mainloop for the introspection query
-    let mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
+    let mut mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
     mainloop.start().map_err(|e| format!("Failed to start mainloop: {}", e))?;
 
-    let context = Context::new(&mainloop, "FXSound Device Query")
+    let mut context = Context::new(&mainloop, "FXSound Device Query")
         .ok_or("Failed to create PulseAudio context")?;
 
     // Lock the mainloop while connecting
