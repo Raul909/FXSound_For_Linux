@@ -1,10 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, DEVICES } from "./constants";
 import EQBand from "./components/EQBand";
 import EffectSlider from "./components/EffectSlider";
 import Visualizer from "./components/Visualizer";
+
+// Helper wrappers to give stable references via useCallback at the child level
+function EQBandWrapper({ freq, index, value, updateEQBand, disabled }) {
+  const handleChange = useCallback((val) => updateEQBand(index, val), [index, updateEQBand]);
+  return <EQBand freq={freq} value={value} onChange={handleChange} disabled={disabled} />;
+}
+
+function EffectSliderWrapper({ label, effectKey, value, updateEffect, disabled }) {
+  const handleChange = useCallback((val) => updateEffect(effectKey, val), [effectKey, updateEffect]);
+  return <EffectSlider label={label} value={value} onChange={handleChange} disabled={disabled} />;
+}
 
 /**
  * Root application component for FXSound.
@@ -68,23 +79,25 @@ export default function App() {
    * Update a single EQ band — called when the user drags an EQ slider.
    * Marks the preset as "Custom" since it no longer matches any named preset.
    */
-  function updateEQBand(index, value) {
-    const newEq = [...eq];
-    newEq[index] = value;
-    setEq(newEq);
+  const updateEQBand = useCallback((index, value) => {
+    setEq((prev) => {
+      const newEq = [...prev];
+      newEq[index] = value;
+      return newEq;
+    });
     setPreset("Custom");
     invoke("set_eq_band", { band: index, gain: value }).catch(console.error);
-  }
+  }, []);
 
   /**
    * Update a single effect — called when the user drags an effect slider.
    * Marks the preset as "Custom".
    */
-  function updateEffect(key, value) {
+  const updateEffect = useCallback((key, value) => {
     setFx((prev) => ({ ...prev, [key]: value }));
     setPreset("Custom");
     invoke("set_effect", { effect: key, value }).catch(console.error);
-  }
+  }, []);
 
   // ---------- Dropdown Data ----------
 
@@ -194,11 +207,12 @@ export default function App() {
             <>
               <div className="eq-panel">
                 {EQ_BANDS.map((freq, index) => (
-                  <EQBand
+                  <EQBandWrapper
                     key={freq}
                     freq={freq}
+                    index={index}
                     value={eq[index]}
-                    onChange={(val) => updateEQBand(index, val)}
+                    updateEQBand={updateEQBand}
                     disabled={!powered}
                   />
                 ))}
@@ -215,11 +229,12 @@ export default function App() {
           {tab === "fx" && (
             <div className="fx-panel">
               {effectSliders.map(({ label, key }) => (
-                <EffectSlider
+                <EffectSliderWrapper
                   key={key}
                   label={label}
+                  effectKey={key}
                   value={fx[key]}
-                  onChange={(val) => updateEffect(key, val)}
+                  updateEffect={updateEffect}
                   disabled={!powered}
                 />
               ))}

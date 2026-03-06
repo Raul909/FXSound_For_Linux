@@ -37,15 +37,43 @@ export default function Visualizer({ powered }) {
     }, []);
 
     useEffect(() => {
-        if (!powered) {
-            setDisplayData(new Array(BAR_COUNT).fill(2));
-            targetData.current = new Array(BAR_COUNT).fill(2);
-            cleanupWebAudio();
-            return;
-        }
-
         let cancelled = false;
         let pollInterval = null;
+
+        if (!powered) {
+            // Do not call setState directly inside useEffect body, handle it via ref and animation frame.
+            targetData.current = new Array(BAR_COUNT).fill(2);
+            cleanupWebAudio();
+            // Start a simple animation to reset the bars
+            let lastTime = performance.now();
+            function animateReset(now) {
+                if (cancelled) return;
+                const dt = Math.min((now - lastTime) / 1000, 0.1);
+                lastTime = now;
+                let done = true;
+                setDisplayData(prev => {
+                    const next = new Array(prev.length);
+                    for (let i = 0; i < prev.length; i++) {
+                        const target = targetData.current[i] || 2;
+                        const speed = 14;
+                        const diff = target - prev[i];
+                        if (Math.abs(diff) > 0.1) {
+                            done = false;
+                        }
+                        next[i] = prev[i] + diff * Math.min(speed * dt, 1);
+                    }
+                    return next;
+                });
+                if (!done) {
+                    animFrameRef.current = requestAnimationFrame(animateReset);
+                }
+            }
+            animFrameRef.current = requestAnimationFrame(animateReset);
+            return () => {
+                cancelled = true;
+                if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+            };
+        }
 
         // Strategy 1: Try backend FFT data
         async function tryBackend() {
@@ -55,7 +83,9 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            } catch {
+                // Ignore error
+            }
             return false;
         }
 
@@ -104,7 +134,9 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    } catch {
+                        // Ignore error
+                    }
                 }, 50);
                 return;
             }
