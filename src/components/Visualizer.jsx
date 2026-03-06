@@ -38,6 +38,7 @@ export default function Visualizer({ powered }) {
 
     useEffect(() => {
         if (!powered) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayData(new Array(BAR_COUNT).fill(2));
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
@@ -55,7 +56,7 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            } catch { /* ignore */ }
             return false;
         }
 
@@ -104,7 +105,7 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    } catch { /* ignore */ }
                 }, 50);
                 return;
             }
