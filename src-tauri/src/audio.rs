@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex};
+use rustfft::{FftPlanner, Fft, num_complex::Complex};
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -125,10 +125,19 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
+
+    /// Cached FFT processor for the visualizer to avoid re-planning.
+    fft_processor: Arc<dyn Fft<f32>>,
+
+    /// Pre-allocated buffer for FFT input to avoid heap allocations in the audio loop.
+    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
+        let mut planner = FftPlanner::new();
+        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
+
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
             .iter()
@@ -142,6 +151,8 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
+            fft_processor,
+            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -302,29 +313,23 @@ impl AudioEngine {
     // ── Visualizer FFT ──
 
     /// Compute FFT magnitudes from the output buffer and store for the visualizer.
-    fn update_fft(&self, buffer: &[f32]) {
+    fn update_fft(&mut self, buffer: &[f32]) {
         if buffer.len() < FFT_SIZE {
             return;
         }
 
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(FFT_SIZE);
+        // Copy input to the pre-allocated complex buffer
+        for (i, &sample) in buffer[..FFT_SIZE].iter().enumerate() {
+            self.complex_buffer[i].re = sample;
+            self.complex_buffer[i].im = 0.0;
+        }
 
-        let mut complex_input: Vec<Complex<f32>> = buffer[..FFT_SIZE]
-            .iter()
-            .map(|&x| Complex::new(x, 0.0))
-            .collect();
-
-        fft.process(&mut complex_input);
-
-        // Convert to magnitudes, scaled for display (0–100 range)
-        let magnitudes: Vec<f32> = complex_input[..32]
-            .iter()
-            .map(|c| (c.norm() * 100.0).min(100.0))
-            .collect();
+        self.fft_processor.process(&mut self.complex_buffer);
 
         if let Ok(mut fft_data) = self.fft_data.lock() {
-            *fft_data = magnitudes;
+            for (i, c) in self.complex_buffer[..32].iter().enumerate() {
+                fft_data[i] = (c.norm() * 100.0).min(100.0);
+            }
         }
     }
 }
@@ -486,10 +491,10 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     use std::time::Duration;
 
     // Create a threaded mainloop for the introspection query
-    let mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
+    let mut mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
     mainloop.start().map_err(|e| format!("Failed to start mainloop: {}", e))?;
 
-    let context = Context::new(&mainloop, "FXSound Device Query")
+    let mut context = Context::new(&mainloop, "FXSound Device Query")
         .ok_or("Failed to create PulseAudio context")?;
 
     // Lock the mainloop while connecting
