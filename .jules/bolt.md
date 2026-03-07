@@ -1,0 +1,3 @@
+## 2024-05-24 - Cache FFT processor and buffers in audio loop
+**Learning:** Instantiating a new `FftPlanner` and performing `.collect()` vector allocations inside a real-time audio loop (e.g. `update_fft`) causes significant performance bottlenecks.
+**Action:** Always pre-allocate complex buffers and cache planners (like `fft_processor: Arc<dyn rustfft::Fft<f32>>`) during struct initialization, and perform in-place mutations inside the processing loop to avoid heap allocations.
