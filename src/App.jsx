@@ -125,6 +125,8 @@ export default function App() {
         <div className="header">
           <div className="header__left">
             <button
+              aria-label="Power"
+              aria-pressed={powered}
               className={`power-btn ${powered ? "power-btn--on" : "power-btn--off"}`}
               onClick={() => setPowered((prev) => !prev)}
             >
@@ -140,9 +142,10 @@ export default function App() {
           <div className="header__dropdowns">
             {dropdowns.map(({ label, value: val, options, onChange, showCustom }) => (
               <div key={label} className="dropdown">
-                <div className="dropdown__label">{label}</div>
+                <div id={`dropdown-label-${label}`} className="dropdown__label">{label}</div>
                 <div className="dropdown__wrapper">
                   <select
+                    aria-labelledby={`dropdown-label-${label}`}
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
