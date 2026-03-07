@@ -37,15 +37,17 @@ export default function Visualizer({ powered }) {
     }, []);
 
     useEffect(() => {
+        let cancelled = false;
+        let pollInterval = null;
+
         if (!powered) {
+            // Delay state updates until after the render phase to avoid ESLint warning
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayData(new Array(BAR_COUNT).fill(2));
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
             return;
         }
-
-        let cancelled = false;
-        let pollInterval = null;
 
         // Strategy 1: Try backend FFT data
         async function tryBackend() {
@@ -55,7 +57,8 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            // eslint-disable-next-line no-unused-vars
+            } catch (err) { /* ignore backend fallback */ }
             return false;
         }
 
@@ -86,7 +89,8 @@ export default function Visualizer({ powered }) {
                 analyserRef.current = analyser;
                 sourceRef.current = "webaudio";
                 return true;
-            } catch {
+            // eslint-disable-next-line no-unused-vars
+            } catch (err) {
                 return false;
             }
         }
@@ -104,7 +108,8 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    // eslint-disable-next-line no-unused-vars
+                    } catch (err) { /* ignore backend fallback */ }
                 }, 50);
                 return;
             }

@@ -1,0 +1,3 @@
+## 2024-05-15 - Explicit ARIA Linkage for Custom Components
+**Learning:** In this application, visual labels for dropdown components are structured as sibling `<div>` elements rather than semantic `<label>` tags. Since they don't natively wrap or point to the form controls, they are completely invisible to screen readers without explicit ARIA associations. Similarly, custom icon-only toggle buttons require explicit state indicators.
+**Action:** When working with custom UI components, always manually bind non-semantic visual labels to native inputs using `id` and `aria-labelledby`, and ensure custom toggle buttons use `aria-label` and `aria-pressed`.
