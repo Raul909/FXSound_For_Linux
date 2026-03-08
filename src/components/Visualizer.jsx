@@ -38,7 +38,9 @@ export default function Visualizer({ powered }) {
 
     useEffect(() => {
         if (!powered) {
-            setDisplayData(new Array(BAR_COUNT).fill(2));
+            setTimeout(() => {
+                setDisplayData(new Array(BAR_COUNT).fill(2));
+            }, 0);
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
             return;
@@ -55,7 +57,9 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            } catch {
+                // Backend might not be available, ignore error
+            }
             return false;
         }
 
@@ -87,6 +91,7 @@ export default function Visualizer({ powered }) {
                 sourceRef.current = "webaudio";
                 return true;
             } catch {
+                // User may have cancelled or permissions denied
                 return false;
             }
         }
@@ -104,7 +109,9 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    } catch {
+                        // Polling might fail if backend restarts, ignore error
+                    }
                 }, 50);
                 return;
             }

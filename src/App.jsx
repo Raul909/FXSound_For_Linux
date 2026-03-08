@@ -127,6 +127,8 @@ export default function App() {
             <button
               className={`power-btn ${powered ? "power-btn--on" : "power-btn--off"}`}
               onClick={() => setPowered((prev) => !prev)}
+              aria-label="Power"
+              aria-pressed={powered}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill={powered ? "#fff" : "#555"}>
                 <path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z" />
@@ -140,13 +142,14 @@ export default function App() {
           <div className="header__dropdowns">
             {dropdowns.map(({ label, value: val, options, onChange, showCustom }) => (
               <div key={label} className="dropdown">
-                <div className="dropdown__label">{label}</div>
+                <div id={`dropdown-label-${label.replace(/\s+/g, '-')}`} className="dropdown__label">{label}</div>
                 <div className="dropdown__wrapper">
                   <select
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
                     className="dropdown__select"
+                    aria-labelledby={`dropdown-label-${label.replace(/\s+/g, '-')}`}
                   >
                     {options.map((opt) => (
                       <option key={opt}>{opt}</option>
