@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 
 /**
  * A single vertical EQ band slider.
@@ -12,7 +12,7 @@ import { useRef } from "react";
  *   onChange — callback receiving the new gain value
  *   disabled — whether the slider is interactive
  */
-export default function EQBand({ freq, value, onChange, disabled }) {
+const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
     const trackRef = useRef(null);
 
     // Convert a mouse Y position to a gain value (-12 to +12 dB)
@@ -26,10 +26,15 @@ export default function EQBand({ freq, value, onChange, disabled }) {
     function handleMouseDown(event) {
         if (disabled) return;
 
-        onChange(yToGain(event.clientY));
+        let lastValue = yToGain(event.clientY);
+        onChange(lastValue);
 
         function handleMouseMove(moveEvent) {
-            onChange(yToGain(moveEvent.clientY));
+            const newValue = yToGain(moveEvent.clientY);
+            if (newValue !== lastValue) {
+                lastValue = newValue;
+                onChange(newValue);
+            }
         }
 
         function handleMouseUp() {
@@ -84,4 +89,6 @@ export default function EQBand({ freq, value, onChange, disabled }) {
             <span className="eq-band__freq">{freq}</span>
         </div>
     );
-}
+});
+
+export default EQBand;
