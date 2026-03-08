@@ -1,0 +1,3 @@
+## 2024-05-15 - Dropdown Labels and Icon Buttons
+**Learning:** Custom UI elements acting as labels for native inputs (`<select>`) must be explicitly linked using `id` and `aria-labelledby`. Icon-only toggle buttons must combine `aria-label` with `aria-pressed` to correctly convey state to screen readers.
+**Action:** Always verify that visual labels and interactive states are properly communicated to assistive technologies, especially when using custom styling or non-standard HTML structures.
