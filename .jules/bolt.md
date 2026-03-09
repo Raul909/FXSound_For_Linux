@@ -1,4 +1,7 @@
+## 2025-05-14 - Optimize Audio Processing Loop and FFT
 
-## 2025-03-09 - [Optimizing continuous mouse interaction performance in React]
-**Learning:** React processes high-frequency mouse events without throttling. If state-updating functions like `onChange` are triggered directly by raw `mousemove` data points without ensuring discrete value changes, it causes a severe number of unnecessary state updates and backend calls. Relying only on `React.memo` or debouncing is ineffective if the parent component continues to pass down the same unfiltered stream of data.
-**Action:** When handling draggable components like sliders that map to integer outputs (e.g., gain values or percentages), compute the discrete integer within the event listener and cache it in a local `lastValue` variable. Only fire the `onChange` callback and trigger React state updates when the computed discrete value actually changes.
+**Learning:**
+The real-time audio loop was performing multiple vector allocations per iteration and re-planning the FFT on every call. In latency-sensitive threads like audio processing, heap allocations and expensive planning operations should be avoided.
+
+**Action:**
+Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.

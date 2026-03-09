@@ -41,7 +41,8 @@ export default function Visualizer({ powered }) {
         let pollInterval = null;
 
         if (!powered) {
-            // Do not call setState directly inside useEffect body, handle it via ref and animation frame.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setDisplayData(new Array(BAR_COUNT).fill(2));
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
             // Start a simple animation to reset the bars
@@ -83,9 +84,7 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch {
-                // Ignore error
-            }
+            } catch { /* ignore */ }
             return false;
         }
 
@@ -134,9 +133,7 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch {
-                        // Ignore error
-                    }
+                    } catch { /* ignore */ }
                 }, 50);
                 return;
             }
