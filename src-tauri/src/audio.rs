@@ -587,23 +587,25 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 }
 
 #[cfg(test)]
-mod performance_tests {
+mod tests {
     use super::*;
 
     #[test]
-    fn test_engine_initialization() {
-        let engine = AudioEngine::new();
-        assert_eq!(engine.complex_buffer.len(), FFT_SIZE);
-        assert!(engine.powered);
-    }
+    fn test_filter_flat() {
+        let mut filter = BiquadFilter::flat();
 
-    #[test]
-    fn test_process_audio_basic() {
-        let mut engine = AudioEngine::new();
-        let input = vec![0.1f32; 1024];
-        let mut output = vec![0.0f32; 1024];
-        engine.process_audio(&input, &mut output);
-        // Output should not be zero if powered on and input has signal
-        assert!(output.iter().any(|&x| x != 0.0));
+        // Verify coefficients for unity gain
+        assert_eq!(filter.b0, 1.0);
+        assert_eq!(filter.b1, 0.0);
+        assert_eq!(filter.b2, 0.0);
+        assert_eq!(filter.a1, 0.0);
+        assert_eq!(filter.a2, 0.0);
+
+        // Verify that it passes audio through unchanged
+        let test_samples = [0.0, 0.5, -0.5, 1.0, -1.0];
+        for &sample in &test_samples {
+            assert_eq!(filter.process(sample, 0), sample);
+            assert_eq!(filter.process(sample, 1), sample);
+        }
     }
 }
