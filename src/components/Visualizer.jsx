@@ -37,16 +37,44 @@ export default function Visualizer({ powered }) {
     }, []);
 
     useEffect(() => {
+        let cancelled = false;
+        let pollInterval = null;
+
         if (!powered) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setDisplayData(new Array(BAR_COUNT).fill(2));
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
-            return;
+            // Start a simple animation to reset the bars
+            let lastTime = performance.now();
+            function animateReset(now) {
+                if (cancelled) return;
+                const dt = Math.min((now - lastTime) / 1000, 0.1);
+                lastTime = now;
+                let done = true;
+                setDisplayData(prev => {
+                    const next = new Array(prev.length);
+                    for (let i = 0; i < prev.length; i++) {
+                        const target = targetData.current[i] || 2;
+                        const speed = 14;
+                        const diff = target - prev[i];
+                        if (Math.abs(diff) > 0.1) {
+                            done = false;
+                        }
+                        next[i] = prev[i] + diff * Math.min(speed * dt, 1);
+                    }
+                    return next;
+                });
+                if (!done) {
+                    animFrameRef.current = requestAnimationFrame(animateReset);
+                }
+            }
+            animFrameRef.current = requestAnimationFrame(animateReset);
+            return () => {
+                cancelled = true;
+                if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+            };
         }
-
-        let cancelled = false;
-        let pollInterval = null;
 
         // Strategy 1: Try backend FFT data
         async function tryBackend() {
