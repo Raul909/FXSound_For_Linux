@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex};
+use rustfft::{FftPlanner, num_complex::Complex, Fft};
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -127,6 +127,10 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
+
+    /// Cached FFT processor and buffers to avoid repeated allocations.
+    fft_processor: Arc<dyn Fft<f32>>,
+    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -140,6 +144,9 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
+        let mut planner = FftPlanner::new();
+        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
+
         Self {
             fft_processor,
             complex_buffer,
@@ -149,6 +156,8 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
+            fft_processor,
+            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -314,27 +323,20 @@ impl AudioEngine {
             return;
         }
 
-        for (i, &val) in buffer[..FFT_SIZE].iter().enumerate() {
-            self.complex_buffer[i] = Complex::new(val, 0.0);
+        // Re-use complex buffer
+        for (sample, complex) in buffer[..FFT_SIZE].iter().zip(self.complex_buffer.iter_mut()) {
+            *complex = Complex::new(*sample, 0.0);
         }
 
         self.fft_processor.process(&mut self.complex_buffer);
 
         // Convert to magnitudes, scaled for display (0–100 range)
-        let magnitudes: Vec<f32> = self.complex_buffer[..32]
-            .iter()
-            .map(|c| (c.norm() * 100.0).min(100.0))
-            .collect();
-
         if let Ok(mut fft_data) = self.fft_data.lock() {
-            *fft_data = magnitudes;
+            for (mag, complex) in fft_data.iter_mut().zip(self.complex_buffer[..32].iter()) {
+                *mag = (complex.norm() * 100.0).min(100.0);
+            }
         }
     }
-}
-
-/// Convert decibels to linear gain.
-fn _db_to_linear(db: f32) -> f32 {
-    10.0f32.powf(db / 20.0)
 }
 
 // ──────────────────────────────────────────────
@@ -437,7 +439,9 @@ impl AudioProcessor {
 
         const BUFFER_SIZE: usize = 1024;
         let mut input_bytes = vec![0u8; BUFFER_SIZE * 4]; // f32 = 4 bytes
+        let mut input_samples = vec![0f32; BUFFER_SIZE];
         let mut output_samples = vec![0f32; BUFFER_SIZE];
+        let mut output_bytes = vec![0u8; BUFFER_SIZE * 4];
 
         loop {
             // Read raw bytes from the input stream
@@ -447,11 +451,10 @@ impl AudioProcessor {
                 continue;
             }
 
-            // Convert bytes to f32 samples
-            let input_samples: Vec<f32> = input_bytes
-                .chunks_exact(4)
-                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-                .collect();
+            // Convert bytes to f32 samples in-place
+            for (chunk, sample) in input_bytes.chunks_exact(4).zip(input_samples.iter_mut()) {
+                *sample = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            }
 
             // Process audio through the engine
             {
@@ -459,11 +462,10 @@ impl AudioProcessor {
                 engine.process_audio(&input_samples, &mut output_samples);
             }
 
-            // Convert f32 samples back to bytes and write to output
-            let output_bytes: Vec<u8> = output_samples
-                .iter()
-                .flat_map(|&f| f.to_le_bytes())
-                .collect();
+            // Convert f32 samples back to bytes in-place
+            for (sample, chunk) in output_samples.iter().zip(output_bytes.chunks_exact_mut(4)) {
+                chunk.copy_from_slice(&sample.to_le_bytes());
+            }
 
             if let Err(e) = output.write(&output_bytes) {
                 log::error!("Write error: {}", e);
@@ -583,5 +585,29 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
         Ok(vec!["Default Output".to_string()])
     } else {
         Ok(devices)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filter_flat() {
+        let mut filter = BiquadFilter::flat();
+
+        // Verify coefficients for unity gain
+        assert_eq!(filter.b0, 1.0);
+        assert_eq!(filter.b1, 0.0);
+        assert_eq!(filter.b2, 0.0);
+        assert_eq!(filter.a1, 0.0);
+        assert_eq!(filter.a2, 0.0);
+
+        // Verify that it passes audio through unchanged
+        let test_samples = [0.0, 0.5, -0.5, 1.0, -1.0];
+        for &sample in &test_samples {
+            assert_eq!(filter.process(sample, 0), sample);
+            assert_eq!(filter.process(sample, 1), sample);
+        }
     }
 }

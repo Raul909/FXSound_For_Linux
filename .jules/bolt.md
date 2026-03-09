@@ -1,3 +1,7 @@
-## 2024-05-24 - Pre-allocate and Cache FFT Processor
-**Learning:** In hot audio processing loops (like `process_audio` calling `update_fft` frequently), initializing `rustfft::FftPlanner` and allocating new `Vec<Complex<f32>>` buffers for each invocation causes significant overhead and unnecessary heap allocations.
-**Action:** Cache the planned FFT processor (`Arc<dyn Fft<f32>>`) and pre-allocate the complex scratch buffer within the persistent state (e.g., `AudioEngine` struct) to reuse them during runtime and eliminate intermediate allocations.
+## 2025-05-14 - Optimize Audio Processing Loop and FFT
+
+**Learning:**
+The real-time audio loop was performing multiple vector allocations per iteration and re-planning the FFT on every call. In latency-sensitive threads like audio processing, heap allocations and expensive planning operations should be avoided.
+
+**Action:**
+Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
