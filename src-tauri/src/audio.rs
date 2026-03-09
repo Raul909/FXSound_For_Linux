@@ -582,3 +582,27 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
         Ok(devices)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filter_flat() {
+        let mut filter = BiquadFilter::flat();
+
+        // Verify coefficients for unity gain
+        assert_eq!(filter.b0, 1.0);
+        assert_eq!(filter.b1, 0.0);
+        assert_eq!(filter.b2, 0.0);
+        assert_eq!(filter.a1, 0.0);
+        assert_eq!(filter.a2, 0.0);
+
+        // Verify that it passes audio through unchanged
+        let test_samples = [0.0, 0.5, -0.5, 1.0, -1.0];
+        for &sample in &test_samples {
+            assert_eq!(filter.process(sample, 0), sample);
+            assert_eq!(filter.process(sample, 1), sample);
+        }
+    }
+}
