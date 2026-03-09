@@ -329,11 +329,6 @@ impl AudioEngine {
     }
 }
 
-/// Convert decibels to linear gain.
-fn _db_to_linear(db: f32) -> f32 {
-    10.0f32.powf(db / 20.0)
-}
-
 // ──────────────────────────────────────────────
 //  PulseAudio Integration
 // ──────────────────────────────────────────────
