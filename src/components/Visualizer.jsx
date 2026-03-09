@@ -37,11 +37,16 @@ export default function Visualizer({ powered }) {
     }, []);
 
     useEffect(() => {
+        let cleanupTimeout;
         if (!powered) {
-            setDisplayData(new Array(BAR_COUNT).fill(2));
+            cleanupTimeout = setTimeout(() => {
+                setDisplayData(new Array(BAR_COUNT).fill(2));
+            }, 0);
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
-            return;
+            return () => {
+                if (cleanupTimeout) clearTimeout(cleanupTimeout);
+            };
         }
 
         let cancelled = false;
@@ -55,7 +60,9 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            } catch {
+                // Ignore error and fall back to next strategy
+            }
             return false;
         }
 
@@ -104,7 +111,9 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    } catch {
+                        // Ignore polling errors to keep UI alive
+                    }
                 }, 50);
                 return;
             }
