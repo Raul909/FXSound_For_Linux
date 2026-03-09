@@ -38,10 +38,14 @@ export default function Visualizer({ powered }) {
 
     useEffect(() => {
         if (!powered) {
-            setDisplayData(new Array(BAR_COUNT).fill(2));
+            setTimeout(() => {
+                setDisplayData(new Array(BAR_COUNT).fill(2));
+            }, 0);
             targetData.current = new Array(BAR_COUNT).fill(2);
             cleanupWebAudio();
-            return;
+            return () => {
+                // Clear any pending timeouts if needed
+            };
         }
 
         let cancelled = false;
@@ -55,7 +59,8 @@ export default function Visualizer({ powered }) {
                     sourceRef.current = "backend";
                     return true;
                 }
-            } catch { }
+            // eslint-disable-next-line no-unused-vars
+            } catch (_err) { /* ignore backend fallback error */ }
             return false;
         }
 
@@ -86,7 +91,9 @@ export default function Visualizer({ powered }) {
                 analyserRef.current = analyser;
                 sourceRef.current = "webaudio";
                 return true;
-            } catch {
+            // eslint-disable-next-line no-unused-vars
+            } catch (_err) {
+                // ignore
                 return false;
             }
         }
@@ -104,7 +111,8 @@ export default function Visualizer({ powered }) {
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { }
+                    // eslint-disable-next-line no-unused-vars
+                    } catch (_err) { /* ignore backend fallback error */ }
                 }, 50);
                 return;
             }

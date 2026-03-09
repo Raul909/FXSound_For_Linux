@@ -125,6 +125,12 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
+
+    /// Cached FFT processor to avoid re-planning cost.
+    fft_processor: Arc<dyn rustfft::Fft<f32>>,
+
+    /// Pre-allocated buffer for FFT processing to avoid heap allocations.
+    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -135,6 +141,9 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
+        let mut planner = FftPlanner::new();
+        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
+
         Self {
             powered: true,
             eq_bands: [0.0; 10],
@@ -142,6 +151,8 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
+            fft_processor,
+            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -302,29 +313,23 @@ impl AudioEngine {
     // ── Visualizer FFT ──
 
     /// Compute FFT magnitudes from the output buffer and store for the visualizer.
-    fn update_fft(&self, buffer: &[f32]) {
+    fn update_fft(&mut self, buffer: &[f32]) {
         if buffer.len() < FFT_SIZE {
             return;
         }
 
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(FFT_SIZE);
+        // Copy input to pre-allocated complex buffer
+        for (i, &sample) in buffer[..FFT_SIZE].iter().enumerate() {
+            self.complex_buffer[i] = Complex::new(sample, 0.0);
+        }
 
-        let mut complex_input: Vec<Complex<f32>> = buffer[..FFT_SIZE]
-            .iter()
-            .map(|&x| Complex::new(x, 0.0))
-            .collect();
+        self.fft_processor.process(&mut self.complex_buffer);
 
-        fft.process(&mut complex_input);
-
-        // Convert to magnitudes, scaled for display (0–100 range)
-        let magnitudes: Vec<f32> = complex_input[..32]
-            .iter()
-            .map(|c| (c.norm() * 100.0).min(100.0))
-            .collect();
-
+        // Update shared fft_data directly
         if let Ok(mut fft_data) = self.fft_data.lock() {
-            *fft_data = magnitudes;
+            for (i, c) in self.complex_buffer[..32].iter().enumerate() {
+                fft_data[i] = (c.norm() * 100.0).min(100.0);
+            }
         }
     }
 }
