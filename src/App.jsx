@@ -17,6 +17,22 @@ function EffectSliderWrapper({ label, effectKey, value, updateEffect, disabled }
   return <EffectSlider label={label} value={value} onChange={handleChange} disabled={disabled} />;
 }
 
+// ⚡ Bolt: Static arrays are hoisted outside the component to prevent memory
+// reallocation and object reference changes on every render cycle.
+// Effect sliders with display labels and their keys in PRESET_FX
+const EFFECT_SLIDERS = [
+  { label: "Fidelity", key: "fidelity" },
+  { label: "Ambiance", key: "ambiance" },
+  { label: "Dynamic Boost", key: "dynamic" },
+  { label: "3D Surround", key: "surround" },
+  { label: "HyperBass", key: "bass" },
+];
+
+const TABS = [
+  { id: "eq", label: "EQUALIZER" },
+  { id: "fx", label: "EFFECTS" },
+];
+
 /**
  * Root application component for FXSound.
  *
@@ -119,15 +135,6 @@ export default function App() {
     },
   ];
 
-  // Effect sliders with display labels and their keys in PRESET_FX
-  const effectSliders = [
-    { label: "Fidelity", key: "fidelity" },
-    { label: "Ambiance", key: "ambiance" },
-    { label: "Dynamic Boost", key: "dynamic" },
-    { label: "3D Surround", key: "surround" },
-    { label: "HyperBass", key: "bass" },
-  ];
-
   // ---------- Render ----------
 
   return (
@@ -183,10 +190,7 @@ export default function App() {
 
         {/* ---- Tab Buttons ---- */}
         <div className="tabs">
-          {[
-            { id: "eq", label: "EQUALIZER" },
-            { id: "fx", label: "EFFECTS" },
-          ].map(({ id, label }) => (
+          {TABS.map(({ id, label }) => (
             <button
               key={id}
               className={`tabs__btn ${tab === id ? "tabs__btn--active" : ""}`}
@@ -231,7 +235,7 @@ export default function App() {
           {/* Effects Tab */}
           {tab === "fx" && (
             <div className="fx-panel">
-              {effectSliders.map(({ label, key }) => (
+              {EFFECT_SLIDERS.map(({ label, key }) => (
                 <EffectSliderWrapper
                   key={key}
                   label={label}
