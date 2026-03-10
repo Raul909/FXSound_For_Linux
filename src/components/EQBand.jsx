@@ -46,6 +46,42 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Handle keyboard interaction on the slider track
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        switch (event.key) {
+            case 'ArrowUp':
+            case 'ArrowRight':
+                newValue = Math.min(12, value + 1);
+                break;
+            case 'ArrowDown':
+            case 'ArrowLeft':
+                newValue = Math.max(-12, value - 1);
+                break;
+            case 'Home':
+                newValue = -12;
+                break;
+            case 'End':
+                newValue = 12;
+                break;
+            case 'PageUp':
+                newValue = Math.min(12, value + 3);
+                break;
+            case 'PageDown':
+                newValue = Math.max(-12, value - 3);
+                break;
+            default:
+                return; // Let other keys behave normally
+        }
+
+        event.preventDefault(); // Prevent page scrolling
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Calculate thumb position as a percentage (0% = -12dB bottom, 100% = +12dB top)
     const thumbPercent = ((value + 12) / 24) * 100;
 
@@ -61,6 +97,14 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
                 className="eq-band__track"
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={`${freq} EQ Band`}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-valuenow={value}
+                aria-valuetext={`${value > 0 ? '+' : ''}${value} dB`}
+                onKeyDown={handleKeyDown}
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
                 {/* Center line marking 0 dB */}
