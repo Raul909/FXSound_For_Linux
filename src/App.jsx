@@ -6,6 +6,15 @@ import EQBand from "./components/EQBand";
 import EffectSlider from "./components/EffectSlider";
 import Visualizer from "./components/Visualizer";
 
+// Effect sliders with display labels and their keys in PRESET_FX
+const effectSliders = [
+  { label: "Fidelity", key: "fidelity" },
+  { label: "Ambiance", key: "ambiance" },
+  { label: "Dynamic Boost", key: "dynamic" },
+  { label: "3D Surround", key: "surround" },
+  { label: "HyperBass", key: "bass" },
+];
+
 // Helper wrappers to give stable references via useCallback at the child level
 function EQBandWrapper({ freq, index, value, updateEQBand, disabled }) {
   const handleChange = useCallback((val) => updateEQBand(index, val), [index, updateEQBand]);
@@ -117,15 +126,6 @@ export default function App() {
       onChange: setDevice,
       showCustom: false,
     },
-  ];
-
-  // Effect sliders with display labels and their keys in PRESET_FX
-  const effectSliders = [
-    { label: "Fidelity", key: "fidelity" },
-    { label: "Ambiance", key: "ambiance" },
-    { label: "Dynamic Boost", key: "dynamic" },
-    { label: "3D Surround", key: "surround" },
-    { label: "HyperBass", key: "bass" },
   ];
 
   // ---------- Render ----------
