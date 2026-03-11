@@ -46,20 +46,58 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Handle keyboard interaction for accessibility
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        switch (event.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(12, value + 1);
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(-12, value - 1);
+                break;
+            case "Home":
+                newValue = -12;
+                break;
+            case "End":
+                newValue = 12;
+                break;
+            default:
+                return; // Let other keys behave normally
+        }
+
+        event.preventDefault(); // Prevent page scrolling for handled keys
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Calculate thumb position as a percentage (0% = -12dB bottom, 100% = +12dB top)
     const thumbPercent = ((value + 12) / 24) * 100;
 
     return (
         <div className="eq-band">
             {/* Current gain value label */}
-            <span className="eq-band__value">
+            <span id={`eq-band-value-${freq.replace(/\s+/g, '-')}`} className="eq-band__value">
                 {value > 0 ? `+${value}` : value}
             </span>
 
             {/* Vertical slider track */}
             <div
                 ref={trackRef}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-label={`EQ Band ${freq}`}
+                aria-valuetext={`${value > 0 ? `+${value}` : value} dB`}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
