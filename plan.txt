@@ -1,0 +1,4 @@
+1. Identify the security vulnerability/issue.
+2. Formulate a plan to fix the issue.
+3. Replace `unwrap()` with `unwrap_or_else(|poisoned| poisoned.into_inner())`. This handles `PoisonError`s gracefully and prevents a cascading panic on a thread if a lock gets poisoned.
+4. Verify with `cargo check`
