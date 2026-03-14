@@ -22,6 +22,39 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
     }
 
+    // Handle keyboard interaction for accessibility
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let step = 1;
+        if (event.shiftKey) step = 2; // Make shift-key step jump slightly more for small ranges
+
+        let newValue = value;
+        switch (event.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(12, value + step);
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(-12, value - step);
+                break;
+            case "Home":
+                newValue = -12;
+                break;
+            case "End":
+                newValue = 12;
+                break;
+            default:
+                return; // Let browser handle other keys
+        }
+
+        event.preventDefault(); // Prevent page scrolling
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
@@ -59,7 +92,16 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
             {/* Vertical slider track */}
             <div
                 ref={trackRef}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={`EQ Band ${freq}`}
+                aria-orientation="vertical"
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-disabled={disabled}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
