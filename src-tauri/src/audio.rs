@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex, Fft};
+use rustfft::{FftPlanner, num_complex::Complex};
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -127,10 +127,6 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -144,9 +140,6 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
             fft_processor,
             complex_buffer,
@@ -156,8 +149,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -244,18 +235,36 @@ impl AudioEngine {
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
         output.copy_from_slice(input);
 
+        // Pre-compute active bands to avoid heap allocations or branching in the hot loop
+        let mut active_bands = [0usize; 10];
+        let mut active_count = 0;
+
         for band in 0..10 {
-            // Skip flat bands for efficiency
-            if self.eq_bands[band].abs() < 0.1 {
-                continue;
+            if self.eq_bands[band].abs() >= 0.1 {
+                active_bands[active_count] = band;
+                active_count += 1;
+            }
+        }
+
+        if active_count == 0 {
+            return;
+        }
+
+        // ⚡ Bolt Optimization: Sample-outer loop
+        // Processing stereo frames maximizes CPU cache locality and eliminates modulo arithmetic (i % CHANNELS).
+        // Using chunks_exact_mut avoids bounds checking overhead.
+        for frame in output.chunks_exact_mut(CHANNELS as usize) {
+            let mut left = frame[0];
+            let mut right = frame[1];
+
+            for i in 0..active_count {
+                let band = active_bands[i];
+                left = self.filters[band].process(left, 0);
+                right = self.filters[band].process(right, 1);
             }
 
-            // Process each sample through this band's biquad filter
-            // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
-            }
+            frame[0] = left;
+            frame[1] = right;
         }
     }
 
