@@ -1,4 +1,4 @@
-## 2024-05-18 - [Tauri CSP Misconfiguration]
-**Vulnerability:** The Tauri configuration (`src-tauri/tauri.conf.json`) had `app.security.csp` set to `null`, completely disabling Content Security Policy protections.
-**Learning:** Setting CSP to null in Tauri exposes the application to Cross-Site Scripting (XSS) risks by allowing execution of unauthorized scripts and loading of resources from any origin.
-**Prevention:** Always define a strict baseline CSP, such as `"default-src 'self'; style-src 'self' 'unsafe-inline'"`, in Tauri applications to restrict script execution and resource loading to trusted sources.
+## 2024-05-24 - Prevent DoS via cascading panics from Mutex poisoning
+**Vulnerability:** Calling `.unwrap()` on `Mutex` locks introduces a Denial of Service (DoS) vulnerability. If a thread panics while holding a lock, the `Mutex` is poisoned. Subsequent `.unwrap()` calls on `lock()` will cause those threads to panic as well, leading to a cascading failure that crashes the entire application or processing loop.
+**Learning:** In highly concurrent environments or hot paths (like audio processing loops), relying on `.unwrap()` for `Mutex` guards assumes an unrealistic failure-free execution.
+**Prevention:** Instead of `.unwrap()`, handle potential `PoisonError`s safely. Use `unwrap_or_else(|poisoned| poisoned.into_inner())` to recover the `MutexGuard` if the state is still coherent, or `unwrap_or_default()` to return a safe fallback value.
