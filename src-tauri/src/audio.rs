@@ -115,8 +115,6 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -144,12 +142,7 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -157,7 +150,7 @@ impl AudioEngine {
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            complex_buffer,
         }
     }
 
@@ -244,17 +237,23 @@ impl AudioEngine {
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
         output.copy_from_slice(input);
 
-        for band in 0..10 {
-            // Skip flat bands for efficiency
-            if self.eq_bands[band].abs() < 0.1 {
-                continue;
-            }
+        // Pre-calculate which bands are active to avoid repeated checks inside the hot loop
+        let active_bands: Vec<usize> = (0..10)
+            .filter(|&band| self.eq_bands[band].abs() >= 0.1)
+            .collect();
 
-            // Process each sample through this band's biquad filter
-            // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+        if active_bands.is_empty() {
+            return;
+        }
+
+        // Sample-outer-loop approach with chunks_exact_mut(CHANNELS)
+        // This maximizes CPU cache locality and eliminates slow modulo arithmetic (i % CHANNELS).
+        for frame in output.chunks_exact_mut(CHANNELS as usize) {
+            for &band in &active_bands {
+                frame[0] = self.filters[band].process(frame[0], 0); // Left channel
+                if frame.len() > 1 {
+                    frame[1] = self.filters[band].process(frame[1], 1); // Right channel
+                }
             }
         }
     }
