@@ -115,8 +115,6 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -144,9 +142,6 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
             fft_processor,
             complex_buffer,
@@ -156,8 +151,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
