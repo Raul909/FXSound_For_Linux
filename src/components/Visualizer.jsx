@@ -126,15 +126,22 @@ export default function Visualizer({ powered }) {
 
             const backendOk = await tryBackend();
             if (backendOk && !cancelled) {
-                // Poll backend at ~20fps
-                pollInterval = setInterval(async () => {
+                // Poll backend at ~20fps using recursive setTimeout
+                async function pollBackend() {
+                    if (cancelled) return;
                     try {
                         const data = await invoke("get_visualizer_data");
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
-                    } catch { /* ignore */ }
-                }, 50);
+                    } catch {
+                        // ignore error
+                    }
+                    if (!cancelled) {
+                        pollInterval = setTimeout(pollBackend, 50);
+                    }
+                }
+                pollBackend();
                 return;
             }
 
@@ -158,7 +165,8 @@ export default function Visualizer({ powered }) {
             if (!cancelled) {
                 sourceRef.current = "idle";
                 let phase = 0;
-                pollInterval = setInterval(() => {
+                function animateIdle() {
+                    if (cancelled) return;
                     phase += 0.08;
                     const idle = new Array(BAR_COUNT);
                     for (let i = 0; i < BAR_COUNT; i++) {
@@ -167,7 +175,11 @@ export default function Visualizer({ powered }) {
                         idle[i] = (wave + wave2) * 35 + 5;
                     }
                     targetData.current = idle;
-                }, 50);
+                    if (!cancelled) {
+                        pollInterval = setTimeout(animateIdle, 50);
+                    }
+                }
+                animateIdle();
             }
         }
 
@@ -196,7 +208,7 @@ export default function Visualizer({ powered }) {
 
         return () => {
             cancelled = true;
-            if (pollInterval) clearInterval(pollInterval);
+            if (pollInterval) clearTimeout(pollInterval);
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             cleanupWebAudio();
         };
