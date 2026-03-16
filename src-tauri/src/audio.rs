@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex, Fft};
+use rustfft::{FftPlanner, num_complex::Complex};
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -115,8 +115,6 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -129,7 +127,7 @@ pub struct AudioEngine {
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
 
     /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
+    fft_processor: Arc<dyn rustfft::Fft<f32>>,
     complex_buffer: Vec<Complex<f32>>,
 }
 
@@ -144,12 +142,7 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -157,7 +150,7 @@ impl AudioEngine {
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            complex_buffer,
         }
     }
 
@@ -244,17 +237,27 @@ impl AudioEngine {
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
         output.copy_from_slice(input);
 
+        // Pre-calculate which bands are active to avoid repeated checks inside the loop
+        let mut active_bands = [0usize; 10];
+        let mut active_count = 0;
         for band in 0..10 {
-            // Skip flat bands for efficiency
-            if self.eq_bands[band].abs() < 0.1 {
-                continue;
+            if self.eq_bands[band].abs() >= 0.1 {
+                active_bands[active_count] = band;
+                active_count += 1;
             }
+        }
 
-            // Process each sample through this band's biquad filter
-            // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+        if active_count == 0 {
+            return;
+        }
+
+        // Process audio in frames (left/right pairs) to maximize CPU cache locality
+        // and eliminate the slow per-sample modulo arithmetic (i % CHANNELS)
+        // Also avoiding Vec allocations in real-time hot loops
+        for frame in output.chunks_exact_mut(CHANNELS as usize) {
+            for &band in &active_bands[..active_count] {
+                frame[0] = self.filters[band].process(frame[0], 0);
+                frame[1] = self.filters[band].process(frame[1], 1);
             }
         }
     }
