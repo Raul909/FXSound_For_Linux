@@ -244,17 +244,33 @@ impl AudioEngine {
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
         output.copy_from_slice(input);
 
+        // Pre-compute which bands are active to avoid checking per-sample
+        let mut active_bands = [0usize; 10];
+        let mut active_count = 0;
         for band in 0..10 {
-            // Skip flat bands for efficiency
-            if self.eq_bands[band].abs() < 0.1 {
-                continue;
+            if self.eq_bands[band].abs() >= 0.1 {
+                active_bands[active_count] = band;
+                active_count += 1;
             }
+        }
 
-            // Process each sample through this band's biquad filter
-            // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+        if active_count == 0 {
+            return;
+        }
+
+        // Block processing: Outer loop by band, inner loop by frames.
+        // This keeps a single filter's coefficients in CPU registers for the whole block,
+        // avoiding register spilling that occurs if bands are swapped per-sample.
+        for i in 0..active_count {
+            let band = active_bands[i];
+
+            // Iterate over audio frames (e.g. stereo pairs).
+            // This eliminates slow modulo arithmetic (`i % CHANNELS`) while
+            // safely supporting any number of channels without hardcoding [0] and [1].
+            for frame in output.chunks_mut(CHANNELS as usize) {
+                for (ch, sample) in frame.iter_mut().enumerate() {
+                    *sample = self.filters[band].process(*sample, ch);
+                }
             }
         }
     }
