@@ -46,20 +46,55 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    function handleKeyDown(event) {
+        if (disabled) return;
+        let newValue = value;
+        switch (event.key) {
+            case "ArrowUp":
+            case "ArrowRight":
+                newValue = Math.min(12, value + 1);
+                break;
+            case "ArrowDown":
+            case "ArrowLeft":
+                newValue = Math.max(-12, value - 1);
+                break;
+            case "Home":
+                newValue = -12;
+                break;
+            case "End":
+                newValue = 12;
+                break;
+            default:
+                return; // Do not prevent default for other keys
+        }
+        event.preventDefault(); // Prevent scrolling
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Calculate thumb position as a percentage (0% = -12dB bottom, 100% = +12dB top)
     const thumbPercent = ((value + 12) / 24) * 100;
 
     return (
         <div className="eq-band">
             {/* Current gain value label */}
-            <span className="eq-band__value">
+            <span className="eq-band__value" id={`eq-band-val-${freq}`}>
                 {value > 0 ? `+${value}` : value}
             </span>
 
             {/* Vertical slider track */}
             <div
                 ref={trackRef}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-valuenow={value}
+                aria-orientation="vertical"
+                aria-label={`${freq} EQ Band`}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >

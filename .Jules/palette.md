@@ -1,3 +1,7 @@
 ## 2024-03-06 - Improve accessibility for icon-only buttons and labeled selects
 **Learning:** In React implementations where generic `<div>`s are used as visual labels next to interactive elements, screen readers will completely fail to associate them unless explicitly linked using `id` and `aria-labelledby`. Also, icon-only buttons that convey binary state (like power) must combine `aria-label` with `aria-pressed` to correctly indicate both function and current status to assistive technologies.
 **Action:** When adding or reviewing custom interactive components (like dropdowns and status toggles), verify that visual text is explicitly linked to `<select>` or `<input>` tags using proper ARIA attributes, and ensure all purely visual icon buttons have corresponding textual alternatives and explicit state announcements.
+
+## 2024-04-18 - Keyboard accessibility for custom `<div>` sliders
+**Learning:** In React components where custom interactive sliders are built using `<div>` elements instead of native `<input type="range">`, screen readers and keyboard users cannot interact with them by default.
+**Action:** Always implement full W3C keyboard handlers (Arrow keys, Home, End) and attach `role="slider"`, `tabIndex`, `aria-valuemin`/`max`/`now`, and `aria-label`/`labelledby` to the track element. Additionally, ensure there are clear `:focus-visible` styles on the track so keyboard users can see where focus is placed.
