@@ -16,8 +16,7 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
     const trackRef = useRef(null);
 
     // Convert a mouse X position to an effect value (0–100)
-    function xToValue(mouseX) {
-        const rect = trackRef.current.getBoundingClientRect();
+    function xToValue(mouseX, rect) {
         const ratio = (mouseX - rect.left) / rect.width;
         return Math.round(Math.max(0, Math.min(100, ratio * 100)));
     }
@@ -26,11 +25,15 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
     function handleMouseDown(event) {
         if (disabled) return;
 
-        let lastValue = xToValue(event.clientX);
+        // Cache layout geometry on mousedown to prevent layout thrashing
+        // during high-frequency mousemove events.
+        const rect = trackRef.current.getBoundingClientRect();
+
+        let lastValue = xToValue(event.clientX, rect);
         onChange(lastValue);
 
         function handleMouseMove(moveEvent) {
-            const newValue = xToValue(moveEvent.clientX);
+            const newValue = xToValue(moveEvent.clientX, rect);
             if (newValue !== lastValue) {
                 lastValue = newValue;
                 onChange(newValue);
