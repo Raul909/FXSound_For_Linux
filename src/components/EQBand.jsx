@@ -16,8 +16,7 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
     const trackRef = useRef(null);
 
     // Convert a mouse Y position to a gain value (-12 to +12 dB)
-    function yToGain(mouseY) {
-        const rect = trackRef.current.getBoundingClientRect();
+    function yToGain(mouseY, rect) {
         const ratio = 1 - (mouseY - rect.top) / rect.height; // 0 at bottom, 1 at top
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
     }
@@ -26,11 +25,15 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
     function handleMouseDown(event) {
         if (disabled) return;
 
-        let lastValue = yToGain(event.clientY);
+        // Cache the bounding client rect on mousedown to prevent layout thrashing
+        // during the high-frequency mousemove events.
+        const rect = trackRef.current.getBoundingClientRect();
+
+        let lastValue = yToGain(event.clientY, rect);
         onChange(lastValue);
 
         function handleMouseMove(moveEvent) {
-            const newValue = yToGain(moveEvent.clientY);
+            const newValue = yToGain(moveEvent.clientY, rect);
             if (newValue !== lastValue) {
                 lastValue = newValue;
                 onChange(newValue);
