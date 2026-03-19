@@ -15,16 +15,18 @@ import { useRef, memo } from "react";
 const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
     const trackRef = useRef(null);
 
-    // Convert a mouse Y position to a gain value (-12 to +12 dB)
-    function yToGain(mouseY) {
-        const rect = trackRef.current.getBoundingClientRect();
-        const ratio = 1 - (mouseY - rect.top) / rect.height; // 0 at bottom, 1 at top
-        return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
-    }
-
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
+
+        // ⚡ Bolt: Cache rect on mousedown to prevent layout thrashing during mousemove
+        const rect = trackRef.current.getBoundingClientRect();
+
+        // Convert a mouse Y position to a gain value (-12 to +12 dB) using cached rect
+        function yToGain(mouseY) {
+            const ratio = 1 - (mouseY - rect.top) / rect.height; // 0 at bottom, 1 at top
+            return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
+        }
 
         let lastValue = yToGain(event.clientY);
         onChange(lastValue);
