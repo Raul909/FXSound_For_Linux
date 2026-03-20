@@ -15,16 +15,19 @@ import { useRef, memo } from "react";
 const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabled }) {
     const trackRef = useRef(null);
 
-    // Convert a mouse X position to an effect value (0–100)
-    function xToValue(mouseX) {
-        const rect = trackRef.current.getBoundingClientRect();
-        const ratio = (mouseX - rect.left) / rect.width;
-        return Math.round(Math.max(0, Math.min(100, ratio * 100)));
-    }
-
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
+
+        // Cache the bounding client rect on mouse down to prevent layout thrashing
+        // during high-frequency mousemove events.
+        const rect = trackRef.current.getBoundingClientRect();
+
+        // Convert a mouse X position to an effect value (0–100)
+        function xToValue(mouseX) {
+            const ratio = (mouseX - rect.left) / rect.width;
+            return Math.round(Math.max(0, Math.min(100, ratio * 100)));
+        }
 
         let lastValue = xToValue(event.clientX);
         onChange(lastValue);
