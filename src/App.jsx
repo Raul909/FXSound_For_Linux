@@ -17,6 +17,15 @@ function EffectSliderWrapper({ label, effectKey, value, updateEffect, disabled }
   return <EffectSlider label={label} value={value} onChange={handleChange} disabled={disabled} />;
 }
 
+// Effect sliders with display labels and their keys in PRESET_FX
+const EFFECT_SLIDERS = [
+  { label: "Fidelity", key: "fidelity" },
+  { label: "Ambiance", key: "ambiance" },
+  { label: "Dynamic Boost", key: "dynamic" },
+  { label: "3D Surround", key: "surround" },
+  { label: "HyperBass", key: "bass" },
+];
+
 /**
  * Root application component for FXSound.
  *
@@ -119,14 +128,6 @@ export default function App() {
     },
   ];
 
-  // Effect sliders with display labels and their keys in PRESET_FX
-  const effectSliders = [
-    { label: "Fidelity", key: "fidelity" },
-    { label: "Ambiance", key: "ambiance" },
-    { label: "Dynamic Boost", key: "dynamic" },
-    { label: "3D Surround", key: "surround" },
-    { label: "HyperBass", key: "bass" },
-  ];
 
   // ---------- Render ----------
 
@@ -231,7 +232,7 @@ export default function App() {
           {/* Effects Tab */}
           {tab === "fx" && (
             <div className="fx-panel">
-              {effectSliders.map(({ label, key }) => (
+              {EFFECT_SLIDERS.map(({ label, key }) => (
                 <EffectSliderWrapper
                   key={key}
                   label={label}
