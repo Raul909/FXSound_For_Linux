@@ -407,11 +407,17 @@ select option {
   border-radius: 10px;
   position: relative;
   border: 1px solid #1e1e2a;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .eq-band__track:hover {
   border-color: #2a2a3a;
+}
+
+.eq-band__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
 }
 
 .eq-band__center-line {
@@ -488,11 +494,17 @@ select option {
   border-radius: 3px;
   position: relative;
   border: 1px solid #1e1e2a;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .effect-slider:hover .effect-slider__track {
   border-color: #2a2a3a;
+}
+
+.effect-slider__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
 }
 
 .effect-slider__fill {

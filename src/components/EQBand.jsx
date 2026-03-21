@@ -22,6 +22,44 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
     }
 
+    // Handle keyboard navigation (W3C compliant)
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        const step = event.shiftKey ? 3 : 1; // 3dB steps with shift
+
+        switch (event.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(12, value + step);
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(-12, value - step);
+                break;
+            case "PageUp":
+                newValue = Math.min(12, value + 3);
+                break;
+            case "PageDown":
+                newValue = Math.max(-12, value - 3);
+                break;
+            case "Home":
+                newValue = -12;
+                break;
+            case "End":
+                newValue = 12;
+                break;
+            default:
+                return; // Let other keys behave normally
+        }
+
+        event.preventDefault(); // Prevent scrolling
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
@@ -58,8 +96,16 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
 
             {/* Vertical slider track */}
             <div
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-label={`${freq} EQ Band`}
+                aria-orientation="vertical"
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
