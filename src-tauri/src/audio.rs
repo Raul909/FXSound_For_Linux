@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex, Fft};
+use rustfft::{FftPlanner, num_complex::Complex};
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -127,15 +127,11 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let mut planner = FftPlanner::new();
+        let mut planner: FftPlanner<f32> = FftPlanner::new();
         let fft_processor = planner.plan_fft_forward(FFT_SIZE);
         let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
         // Start with flat (0 dB) filters for all 10 bands
@@ -143,9 +139,6 @@ impl AudioEngine {
             .iter()
             .map(|_| BiquadFilter::flat())
             .collect();
-
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
 
         Self {
             fft_processor,
@@ -156,8 +149,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -252,9 +243,12 @@ impl AudioEngine {
 
             // Process each sample through this band's biquad filter
             // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+            // Optimization: Process by chunks (frames) to eliminate expensive modulo arithmetic
+            // `i % CHANNELS` in the hot inner loop.
+            for frame in output.chunks_mut(CHANNELS as usize) {
+                for (channel, sample) in frame.iter_mut().enumerate() {
+                    *sample = self.filters[band].process(*sample, channel);
+                }
             }
         }
     }
