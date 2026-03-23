@@ -127,29 +127,20 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-        let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
             .iter()
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
+        let mut planner: FftPlanner<f32> = FftPlanner::new();
         let fft_processor = planner.plan_fft_forward(FFT_SIZE);
 
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),

@@ -495,6 +495,12 @@ select option {
   border-color: #2a2a3a;
 }
 
+.effect-slider__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
+}
+
 .effect-slider__fill {
   height: 100%;
   background: linear-gradient(to right, #b8243e, #e63462, #f7546f);
