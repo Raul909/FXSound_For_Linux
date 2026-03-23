@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex, Fft};
+use rustfft::{FftPlanner, num_complex::Complex};
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -115,8 +115,6 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -129,27 +127,23 @@ pub struct AudioEngine {
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
 
     /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
+    fft_processor: Arc<dyn rustfft::Fft<f32>>,
     complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-        let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
             .iter()
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
+        let mut planner: FftPlanner<f32> = FftPlanner::new();
         let fft_processor = planner.plan_fft_forward(FFT_SIZE);
+        let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
 
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -157,7 +151,7 @@ impl AudioEngine {
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            complex_buffer,
         }
     }
 
@@ -200,7 +194,7 @@ impl AudioEngine {
 
     /// Return the current FFT magnitude data for the visualizer (32 bins).
     pub fn get_fft_data(&self) -> Vec<f32> {
-        self.fft_data.lock().unwrap().clone()
+        self.fft_data.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone()
     }
 
     // ── Main processing pipeline ──
@@ -458,7 +452,7 @@ impl AudioProcessor {
 
             // Process audio through the engine
             {
-                let mut engine = engine.lock().unwrap();
+                let mut engine = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
                 engine.process_audio(&input_samples, &mut output_samples);
             }
 
