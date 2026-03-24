@@ -200,7 +200,8 @@ impl AudioEngine {
 
     /// Return the current FFT magnitude data for the visualizer (32 bins).
     pub fn get_fft_data(&self) -> Vec<f32> {
-        self.fft_data.lock().unwrap().clone()
+        // Prevent DoS panic on mutex poisoning
+        self.fft_data.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone()
     }
 
     // ── Main processing pipeline ──
@@ -458,7 +459,8 @@ impl AudioProcessor {
 
             // Process audio through the engine
             {
-                let mut engine = engine.lock().unwrap();
+                // Prevent DoS panic on mutex poisoning
+                let mut engine = engine.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
                 engine.process_audio(&input_samples, &mut output_samples);
             }
 
