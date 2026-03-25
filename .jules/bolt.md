@@ -1,7 +1,4 @@
-## 2025-05-14 - Optimize Audio Processing Loop and FFT
+## 2024-05-19 - Caching Layout Dimensions in UI Sliders
 
-**Learning:**
-The real-time audio loop was performing multiple vector allocations per iteration and re-planning the FFT on every call. In latency-sensitive threads like audio processing, heap allocations and expensive planning operations should be avoided.
-
-**Action:**
-Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+**Learning:** Calling `getBoundingClientRect()` inside a `mousemove` handler (as previously done in `EQBand` and `EffectSlider`) causes severe layout thrashing by forcing the browser to synchronously recalculate styles and layout on every frame during a drag. Since the slider tracks do not move or resize during the drag interaction itself, these calculations are fully redundant.
+**Action:** Always compute layout-dependent values like `getBoundingClientRect()` once during the initial `mousedown` event, cache them in a variable, and pass them as parameters to the positional calculation functions used inside the `mousemove` handler.
