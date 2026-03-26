@@ -5,3 +5,9 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+
+## 2025-05-14 - Prevent Overlapping Async Executions
+**Learning:**
+In asynchronous polling loops (e.g., calling backend via `invoke`), using `setInterval` can cause overlapping executions if the backend responds slower than the polling interval. This degrades performance and can cause memory leaks.
+**Action:**
+Replaced `setInterval` with a recursive `setTimeout` pattern, ensuring that the next poll is only scheduled after the previous execution has completed.
