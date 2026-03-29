@@ -127,10 +127,6 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -144,9 +140,6 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
             fft_processor,
             complex_buffer,
@@ -156,8 +149,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -252,9 +243,10 @@ impl AudioEngine {
 
             // Process each sample through this band's biquad filter
             // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+            for chunk in output.chunks_mut(CHANNELS as usize) {
+                for (channel, sample) in chunk.iter_mut().enumerate() {
+                    *sample = self.filters[band].process(*sample, channel);
+                }
             }
         }
     }
