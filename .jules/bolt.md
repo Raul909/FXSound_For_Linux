@@ -5,3 +5,9 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+
+## 2025-05-15 - Optimize DSP Inner Loop Modulo Arithmetic
+**Learning:**
+Modulo arithmetic (`i % CHANNELS`) is surprisingly expensive in the innermost loop of real-time DSP pipelines. The `apply_eq` function was running this for every sample across 10 EQ bands.
+**Action:**
+Use block-processing approaches (like `.chunks_mut(CHANNELS)`) to handle multi-channel interleaved buffers, completely eliminating modulo division operations from the hot path.

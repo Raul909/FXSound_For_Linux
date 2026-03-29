@@ -115,8 +115,6 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -135,21 +133,16 @@ pub struct AudioEngine {
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let mut planner = FftPlanner::new();
+        let mut planner: FftPlanner<f32> = FftPlanner::new();
         let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-        let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
+
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
             .iter()
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -252,9 +245,10 @@ impl AudioEngine {
 
             // Process each sample through this band's biquad filter
             // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+            for chunk in output.chunks_mut(CHANNELS as usize) {
+                for (channel, sample) in chunk.iter_mut().enumerate() {
+                    *sample = self.filters[band].process(*sample, channel);
+                }
             }
         }
     }
