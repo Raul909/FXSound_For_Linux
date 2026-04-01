@@ -5,3 +5,7 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+
+## 2025-05-15 - Cache bounding rect in slider mousedown
+**Learning:** Repeatedly calling `getBoundingClientRect()` inside a high-frequency `mousemove` event listener causes layout thrashing and high CPU usage in UI drag interactions.
+**Action:** Cache the result of `getBoundingClientRect()` during the initial `mousedown` event and reuse it across all subsequent `mousemove` events for that interaction session.
