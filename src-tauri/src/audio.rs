@@ -251,10 +251,12 @@ impl AudioEngine {
             }
 
             // Process each sample through this band's biquad filter
-            // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+            // Interleaved stereo: using chunks_mut avoids slow modulo arithmetic
+            // and keeps filter coefficients loaded in fast CPU registers
+            for chunk in output.chunks_mut(CHANNELS as usize) {
+                for (channel, sample) in chunk.iter_mut().enumerate() {
+                    *sample = self.filters[band].process(*sample, channel);
+                }
             }
         }
     }
