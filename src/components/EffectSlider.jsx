@@ -46,15 +46,54 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Handle keyboard interaction for the slider
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        const step = event.shiftKey ? 10 : 1;
+        let newValue = value;
+
+        switch (event.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(100, value + step);
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(0, value - step);
+                break;
+            case "Home":
+                newValue = 0;
+                break;
+            case "End":
+                newValue = 100;
+                break;
+            default:
+                return; // Let other keys behave normally
+        }
+
+        event.preventDefault(); // Prevent scrolling when using arrows
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     return (
         <div className="effect-slider">
             {/* Effect name */}
-            <span className="effect-slider__label">{label}</span>
+            <span className="effect-slider__label" id={`effect-label-${label.replace(/\s+/g, '-')}`}>{label}</span>
 
             {/* Horizontal slider track */}
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
+                role="slider"
+                aria-valuenow={value}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-labelledby={`effect-label-${label.replace(/\s+/g, '-')}`}
+                tabIndex={disabled ? -1 : 0}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
