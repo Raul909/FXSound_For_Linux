@@ -22,9 +22,45 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
     }
 
+    // Handle keyboard interaction
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        const step = event.shiftKey ? 3 : 1; // Faster step with Shift key
+
+        switch (event.key) {
+            case "ArrowUp":
+            case "ArrowRight":
+                newValue = Math.min(12, value + step);
+                event.preventDefault();
+                break;
+            case "ArrowDown":
+            case "ArrowLeft":
+                newValue = Math.max(-12, value - step);
+                event.preventDefault();
+                break;
+            case "Home":
+                newValue = -12;
+                event.preventDefault();
+                break;
+            case "End":
+                newValue = 12;
+                event.preventDefault();
+                break;
+            default:
+                return;
+        }
+
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
+        trackRef.current?.focus();
 
         let lastValue = yToGain(event.clientY);
         onChange(lastValue);
@@ -60,8 +96,16 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={`${freq} Hz`}
+                aria-orientation="vertical"
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
             >
                 {/* Center line marking 0 dB */}
                 <div className="eq-band__center-line" />

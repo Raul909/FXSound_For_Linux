@@ -590,3 +590,10 @@ select option {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+.power-btn:focus-visible,
+.tabs__btn:focus-visible,
+.effect-slider__track:focus-visible,
+.eq-band__track:focus-visible {
+  outline: 2px solid var(--accent, #e63462);
+  outline-offset: 2px;
+}
