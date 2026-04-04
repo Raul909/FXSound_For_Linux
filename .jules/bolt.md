@@ -5,3 +5,7 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+
+## 2024-05-15 - Prevent overlapping async executions in React effects
+**Learning:** Using `setInterval` with asynchronous callbacks (like Tauri `invoke` polling) can cause executions to overlap if a task takes longer than the interval duration, degrading performance by backing up the main thread.
+**Action:** Always use a recursive `setTimeout` pattern for asynchronous polling loops to ensure the previous task completes before the next is scheduled.
