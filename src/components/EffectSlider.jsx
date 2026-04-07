@@ -46,17 +46,59 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Keyboard support for accessibility
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        const step = event.shiftKey ? 10 : 1;
+        let newValue = value;
+
+        switch (event.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(100, value + step);
+                event.preventDefault();
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(0, value - step);
+                event.preventDefault();
+                break;
+            case "Home":
+                newValue = 0;
+                event.preventDefault();
+                break;
+            case "End":
+                newValue = 100;
+                event.preventDefault();
+                break;
+            default:
+                return;
+        }
+
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     return (
         <div className="effect-slider">
             {/* Effect name */}
-            <span className="effect-slider__label">{label}</span>
+            <span id={`effect-label-${label.replace(/\s+/g, '-')}`} className="effect-slider__label">{label}</span>
 
             {/* Horizontal slider track */}
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-labelledby={`effect-label-${label.replace(/\s+/g, '-')}`}
             >
                 {/* Filled portion of the track */}
                 <div

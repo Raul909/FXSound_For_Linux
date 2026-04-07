@@ -590,3 +590,10 @@ select option {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+/* ---- Accessibility (Focus States) ---- */
+.effect-slider__track:focus-visible,
+.eq-band__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
+}
