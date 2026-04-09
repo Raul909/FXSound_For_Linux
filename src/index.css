@@ -414,6 +414,11 @@ select option {
   border-color: #2a2a3a;
 }
 
+.eq-band__track:focus-visible {
+  outline: 2px solid rgba(230, 52, 98, 0.8);
+  outline-offset: 4px;
+}
+
 .eq-band__center-line {
   position: absolute;
   top: 50%;
@@ -493,6 +498,11 @@ select option {
 
 .effect-slider:hover .effect-slider__track {
   border-color: #2a2a3a;
+}
+
+.effect-slider__track:focus-visible {
+  outline: 2px solid rgba(230, 52, 98, 0.8);
+  outline-offset: 4px;
 }
 
 .effect-slider__fill {
