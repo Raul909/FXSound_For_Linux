@@ -185,6 +185,14 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        // Validate effect key against an allowlist to prevent memory exhaustion (DoS)
+        // from unbounded insertions into the HashMap via arbitrary frontend input.
+        let valid_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+        if !valid_effects.contains(&effect) {
+            log::warn!("Attempted to set invalid effect: {}", effect);
+            return;
+        }
+
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
