@@ -590,3 +590,9 @@ select option {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+/* ---- Keyboard Focus Accessibility ---- */
+.eq-band__track:focus-visible,
+.effect-slider__track:focus-visible {
+  outline: 2px solid rgba(230, 52, 98, 0.8);
+  outline-offset: 4px;
+}
