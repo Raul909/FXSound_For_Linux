@@ -407,7 +407,13 @@ select option {
   border-radius: 10px;
   position: relative;
   border: 1px solid #1e1e2a;
-  transition: border-color 0.2s;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.eq-band__track:focus-visible {
+  border-color: #e63462;
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.2);
 }
 
 .eq-band__track:hover {
