@@ -5,3 +5,7 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+
+## 2026-04-13 - Cache getBoundingClientRect in High-Frequency Mouse Event Listeners
+**Learning:** Calling `getBoundingClientRect()` inside a `mousemove` handler forces a synchronous layout recalculation on every pixel moved, causing layout thrashing.
+**Action:** Cache the output of `getBoundingClientRect()` during the initial `mousedown` event instead of recalculating it on every pixel moved for UI sliders.
