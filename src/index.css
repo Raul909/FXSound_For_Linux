@@ -414,6 +414,13 @@ select option {
   border-color: #2a2a3a;
 }
 
+.eq-band__track:focus-visible,
+.effect-slider__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.8);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.2);
+}
+
 .eq-band__center-line {
   position: absolute;
   top: 50%;
