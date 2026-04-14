@@ -5,3 +5,7 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+
+## 2024-05-24 - [Visualizer Async Polling]
+**Learning:** Using `setInterval` to repeatedly trigger asynchronous Tauri `invoke` calls can lead to overlapping executions and performance degradation if the response time exceeds the interval.
+**Action:** Always use a recursive `setTimeout` pattern for high-frequency async polling in React components.
