@@ -38,7 +38,7 @@ export default function Visualizer({ powered }) {
 
     useEffect(() => {
         let cancelled = false;
-        let pollInterval = null;
+        let pollTimer = null;
 
         if (!powered) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -127,14 +127,17 @@ export default function Visualizer({ powered }) {
             const backendOk = await tryBackend();
             if (backendOk && !cancelled) {
                 // Poll backend at ~20fps
-                pollInterval = setInterval(async () => {
+                const pollBackend = async () => {
+                    if (cancelled) return;
                     try {
                         const data = await invoke("get_visualizer_data");
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
                     } catch { /* ignore */ }
-                }, 50);
+                    pollTimer = setTimeout(pollBackend, 50);
+                };
+                pollBackend();
                 return;
             }
 
@@ -158,7 +161,8 @@ export default function Visualizer({ powered }) {
             if (!cancelled) {
                 sourceRef.current = "idle";
                 let phase = 0;
-                pollInterval = setInterval(() => {
+                const pollIdle = () => {
+                    if (cancelled) return;
                     phase += 0.08;
                     const idle = new Array(BAR_COUNT);
                     for (let i = 0; i < BAR_COUNT; i++) {
@@ -167,7 +171,9 @@ export default function Visualizer({ powered }) {
                         idle[i] = (wave + wave2) * 35 + 5;
                     }
                     targetData.current = idle;
-                }, 50);
+                    pollTimer = setTimeout(pollIdle, 50);
+                };
+                pollIdle();
             }
         }
 
@@ -196,7 +202,7 @@ export default function Visualizer({ powered }) {
 
         return () => {
             cancelled = true;
-            if (pollInterval) clearInterval(pollInterval);
+            if (pollTimer) clearTimeout(pollTimer);
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             cleanupWebAudio();
         };
