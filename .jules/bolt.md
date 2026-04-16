@@ -5,3 +5,6 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+## 2026-04-16 - Replace setInterval with recursive setTimeout for async polling
+**Learning:** Using `setInterval` to repeatedly trigger asynchronous operations like Tauri `invoke` calls can lead to overlapping executions and performance degradation if the operation takes longer than the interval.
+**Action:** Use a recursive `setTimeout` pattern to ensure the next iteration only starts after the previous one has fully completed.
