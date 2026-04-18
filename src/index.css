@@ -410,6 +410,12 @@ select option {
   transition: border-color 0.2s;
 }
 
+.eq-band__track:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 .eq-band__track:hover {
   border-color: #2a2a3a;
 }
@@ -489,6 +495,12 @@ select option {
   position: relative;
   border: 1px solid #1e1e2a;
   transition: border-color 0.2s;
+}
+
+.effect-slider__track:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .effect-slider:hover .effect-slider__track {
