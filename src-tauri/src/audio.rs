@@ -4,7 +4,6 @@
 //! (fidelity, dynamic compression, bass boost), and real-time FFT-based
 //! spectrum analysis for the visualizer.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
@@ -110,16 +109,23 @@ impl BiquadFilter {
 //  Audio Engine
 // ──────────────────────────────────────────────
 
+#[derive(Default)]
+pub struct AudioEffects {
+    pub fidelity: f32,
+    pub ambiance: f32,
+    pub dynamic: f32,
+    pub surround: f32,
+    pub bass: f32,
+}
+
 /// Core audio processing state.
 ///
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
-    effects: HashMap<String, f32>,
+    effects: AudioEffects,
     sample_rate: u32,
 
     /// One biquad filter per EQ band — rebuilt when gain changes.
@@ -144,20 +150,15 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
-            effects: HashMap::new(),
+            effects: AudioEffects::default(),
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            complex_buffer,
         }
     }
 
@@ -186,7 +187,14 @@ impl AudioEngine {
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
         let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
+        match effect {
+            "fidelity" => self.effects.fidelity = clamped,
+            "ambiance" => self.effects.ambiance = clamped,
+            "dynamic" => self.effects.dynamic = clamped,
+            "surround" => self.effects.surround = clamped,
+            "bass" => self.effects.bass = clamped,
+            _ => return, // Ignore unknown effects
+        }
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
@@ -264,40 +272,34 @@ impl AudioEngine {
     /// Apply audio effects to the buffer.
     fn apply_effects(&self, buffer: &mut [f32]) {
         // Fidelity: subtle high-frequency harmonic enhancement
-        if let Some(&fidelity) = self.effects.get("fidelity") {
-            if fidelity > 0.0 {
-                let amount = fidelity / 100.0;
-                for sample in buffer.iter_mut() {
-                    // Soft saturation — adds harmonics that brighten the sound
-                    let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
-                    *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
-                }
+        if self.effects.fidelity > 0.0 {
+            let amount = self.effects.fidelity / 100.0;
+            for sample in buffer.iter_mut() {
+                // Soft saturation — adds harmonics that brighten the sound
+                let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
+                *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
             }
         }
 
         // Dynamic compression: reduces the gap between loud and quiet
-        if let Some(&dynamic) = self.effects.get("dynamic") {
-            if dynamic > 0.0 {
-                let threshold = 0.7 - (dynamic / 100.0) * 0.3;
-                let ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5; // 2:1 at max
-                for sample in buffer.iter_mut() {
-                    if sample.abs() > threshold {
-                        let sign = sample.signum();
-                        let excess = sample.abs() - threshold;
-                        *sample = sign * (threshold + excess * ratio);
-                    }
+        if self.effects.dynamic > 0.0 {
+            let threshold = 0.7 - (self.effects.dynamic / 100.0) * 0.3;
+            let ratio = 0.5 + (1.0 - self.effects.dynamic / 100.0) * 0.5; // 2:1 at max
+            for sample in buffer.iter_mut() {
+                if sample.abs() > threshold {
+                    let sign = sample.signum();
+                    let excess = sample.abs() - threshold;
+                    *sample = sign * (threshold + excess * ratio);
                 }
             }
         }
 
         // Bass boost: apply gain to low frequencies
         // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
-        if let Some(&bass) = self.effects.get("bass") {
-            if bass > 0.0 {
-                let boost = 1.0 + (bass / 100.0) * 0.3;
-                for sample in buffer.iter_mut() {
-                    *sample *= boost;
-                }
+        if self.effects.bass > 0.0 {
+            let boost = 1.0 + (self.effects.bass / 100.0) * 0.3;
+            for sample in buffer.iter_mut() {
+                *sample *= boost;
             }
         }
     }
