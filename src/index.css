@@ -590,3 +590,24 @@ select option {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+.eq-band__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
+}
+
+.eq-band__track:focus-visible .eq-band__thumb {
+  box-shadow: 0 2px 12px rgba(230, 52, 98, 0.7), 0 0 0 3px rgba(230, 52, 98, 0.1);
+  transform: translate(-50%, -50%) scale(1.15);
+}
+
+.effect-slider__track:focus-visible {
+  outline: none;
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
+}
+
+.effect-slider__track:focus-visible .effect-slider__thumb {
+  box-shadow: 0 2px 14px rgba(230, 52, 98, 0.7), 0 0 0 3px rgba(230, 52, 98, 0.1);
+  transform: translate(-50%, -50%) scale(1.15);
+}

@@ -60,8 +60,26 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    let nv = value;
+                    if (e.key === "ArrowUp" || e.key === "ArrowRight") nv = Math.min(12, value + 1);
+                    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") nv = Math.max(-12, value - 1);
+                    else if (e.key === "Home") nv = -12;
+                    else if (e.key === "End") nv = 12;
+                    else return;
+                    e.preventDefault();
+                    onChange(nv);
+                }}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-orientation="vertical"
+                aria-label={`${freq} EQ Band`}
             >
                 {/* Center line marking 0 dB */}
                 <div className="eq-band__center-line" />
