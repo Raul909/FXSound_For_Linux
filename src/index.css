@@ -489,6 +489,12 @@ select option {
   position: relative;
   border: 1px solid #1e1e2a;
   transition: border-color 0.2s;
+  outline: none;
+}
+
+.effect-slider__track:focus-visible {
+  border-color: rgba(230, 52, 98, 0.4);
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
 }
 
 .effect-slider:hover .effect-slider__track {
