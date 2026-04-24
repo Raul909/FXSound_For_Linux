@@ -55,8 +55,32 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    let step = 1;
+                    if (e.shiftKey) step = 10;
+                    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                        e.preventDefault();
+                        onChange(Math.min(100, value + step));
+                    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                        onChange(Math.max(0, value - step));
+                    } else if (e.key === "Home") {
+                        e.preventDefault();
+                        onChange(0);
+                    } else if (e.key === "End") {
+                        e.preventDefault();
+                        onChange(100);
+                    }
+                }}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={label}
             >
                 {/* Filled portion of the track */}
                 <div
