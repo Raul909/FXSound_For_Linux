@@ -46,6 +46,40 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Handle keyboard accessibility
+    function handleKeyDown(e) {
+        if (disabled) return;
+        let newValue = value;
+        const step = 5;
+
+        switch (e.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(100, value + step);
+                e.preventDefault();
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(0, value - step);
+                e.preventDefault();
+                break;
+            case "Home":
+                newValue = 0;
+                e.preventDefault();
+                break;
+            case "End":
+                newValue = 100;
+                e.preventDefault();
+                break;
+            default:
+                return;
+        }
+
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     return (
         <div className="effect-slider">
             {/* Effect name */}
@@ -55,6 +89,13 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={label}
+                aria-valuenow={value}
+                aria-valuemin={0}
+                aria-valuemax={100}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
