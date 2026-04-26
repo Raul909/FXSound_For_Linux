@@ -156,6 +156,15 @@ select option {
   transform: scale(1.08);
 }
 
+.power-btn:focus-visible,
+.dropdown__select:focus-visible,
+.tabs__btn:focus-visible,
+.effect-slider__track:focus-visible,
+.eq-band__track:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .power-btn--off {
   background: #16161d;
   border: 2px solid #1e1e2a;
