@@ -4,11 +4,10 @@
 //! (fidelity, dynamic compression, bass boost), and real-time FFT-based
 //! spectrum analysis for the visualizer.
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex, Fft};
+use rustfft::{num_complex::Complex, FftPlanner};
+use std::sync::Arc;
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -16,8 +15,7 @@ const FFT_SIZE: usize = 512;
 
 /// Center frequencies for the 10 EQ bands (Hz).
 const EQ_FREQUENCIES: [f32; 10] = [
-    32.0, 64.0, 125.0, 250.0, 500.0,
-    1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
 ];
 
 // ──────────────────────────────────────────────
@@ -80,19 +78,22 @@ impl BiquadFilter {
     /// Create a flat (pass-through) filter — all coefficients set for unity gain.
     fn flat() -> Self {
         Self {
-            b0: 1.0, b1: 0.0, b2: 0.0,
-            a1: 0.0, a2: 0.0,
-            x1: [0.0; 2], x2: [0.0; 2],
-            y1: [0.0; 2], y2: [0.0; 2],
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a1: 0.0,
+            a2: 0.0,
+            x1: [0.0; 2],
+            x2: [0.0; 2],
+            y1: [0.0; 2],
+            y2: [0.0; 2],
         }
     }
 
     /// Process a single sample through the filter for the given channel.
     fn process(&mut self, input: f32, channel: usize) -> f32 {
         let ch = channel % 2;
-        let output = self.b0 * input
-            + self.b1 * self.x1[ch]
-            + self.b2 * self.x2[ch]
+        let output = self.b0 * input + self.b1 * self.x1[ch] + self.b2 * self.x2[ch]
             - self.a1 * self.y1[ch]
             - self.a2 * self.y2[ch];
 
@@ -110,6 +111,15 @@ impl BiquadFilter {
 //  Audio Engine
 // ──────────────────────────────────────────────
 
+#[derive(Default)]
+pub struct AudioEffects {
+    pub fidelity: f32,
+    pub ambiance: f32,
+    pub dynamic: f32,
+    pub surround: f32,
+    pub bass: f32,
+}
+
 /// Core audio processing state.
 ///
 /// Holds the EQ band gains, effect values, biquad filter instances,
@@ -119,7 +129,7 @@ pub struct AudioEngine {
     complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
-    effects: HashMap<String, f32>,
+    effects: AudioEffects,
     sample_rate: u32,
 
     /// One biquad filter per EQ band — rebuilt when gain changes.
@@ -127,10 +137,6 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -144,20 +150,15 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
             fft_processor,
             complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
-            effects: HashMap::new(),
+            effects: AudioEffects::default(),
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -186,7 +187,14 @@ impl AudioEngine {
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
         let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
+        match effect {
+            "fidelity" => self.effects.fidelity = clamped,
+            "ambiance" => self.effects.ambiance = clamped,
+            "dynamic" => self.effects.dynamic = clamped,
+            "surround" => self.effects.surround = clamped,
+            "bass" => self.effects.bass = clamped,
+            _ => log::warn!("Unknown effect: {}", effect),
+        }
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
@@ -264,40 +272,36 @@ impl AudioEngine {
     /// Apply audio effects to the buffer.
     fn apply_effects(&self, buffer: &mut [f32]) {
         // Fidelity: subtle high-frequency harmonic enhancement
-        if let Some(&fidelity) = self.effects.get("fidelity") {
-            if fidelity > 0.0 {
-                let amount = fidelity / 100.0;
-                for sample in buffer.iter_mut() {
-                    // Soft saturation — adds harmonics that brighten the sound
-                    let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
-                    *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
-                }
+        if self.effects.fidelity > 0.0 {
+            let amount = self.effects.fidelity / 100.0;
+            for sample in buffer.iter_mut() {
+                // Soft saturation — adds harmonics that brighten the sound
+                let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
+                *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
             }
         }
 
         // Dynamic compression: reduces the gap between loud and quiet
-        if let Some(&dynamic) = self.effects.get("dynamic") {
-            if dynamic > 0.0 {
-                let threshold = 0.7 - (dynamic / 100.0) * 0.3;
-                let ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5; // 2:1 at max
-                for sample in buffer.iter_mut() {
-                    if sample.abs() > threshold {
-                        let sign = sample.signum();
-                        let excess = sample.abs() - threshold;
-                        *sample = sign * (threshold + excess * ratio);
-                    }
+        if self.effects.dynamic > 0.0 {
+            let dynamic = self.effects.dynamic;
+            let threshold = 0.7 - (dynamic / 100.0) * 0.3;
+            let ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5; // 2:1 at max
+            for sample in buffer.iter_mut() {
+                if sample.abs() > threshold {
+                    let sign = sample.signum();
+                    let excess = sample.abs() - threshold;
+                    *sample = sign * (threshold + excess * ratio);
                 }
             }
         }
 
         // Bass boost: apply gain to low frequencies
         // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
-        if let Some(&bass) = self.effects.get("bass") {
-            if bass > 0.0 {
-                let boost = 1.0 + (bass / 100.0) * 0.3;
-                for sample in buffer.iter_mut() {
-                    *sample *= boost;
-                }
+        if self.effects.bass > 0.0 {
+            let bass = self.effects.bass;
+            let boost = 1.0 + (bass / 100.0) * 0.3;
+            for sample in buffer.iter_mut() {
+                *sample *= boost;
             }
         }
     }
@@ -324,7 +328,10 @@ impl AudioEngine {
         }
 
         // Re-use complex buffer
-        for (sample, complex) in buffer[..FFT_SIZE].iter().zip(self.complex_buffer.iter_mut()) {
+        for (sample, complex) in buffer[..FFT_SIZE]
+            .iter()
+            .zip(self.complex_buffer.iter_mut())
+        {
             *complex = Complex::new(*sample, 0.0);
         }
 
@@ -372,11 +379,9 @@ impl AudioProcessor {
 
         let engine = Arc::clone(&self.engine);
 
-        std::thread::spawn(move || {
-            match Self::audio_loop(engine, spec) {
-                Ok(_) => log::info!("Audio loop ended normally"),
-                Err(e) => log::error!("Audio loop error: {}", e),
-            }
+        std::thread::spawn(move || match Self::audio_loop(engine, spec) {
+            Ok(_) => log::info!("Audio loop ended normally"),
+            Err(e) => log::error!("Audio loop error: {}", e),
         });
 
         Ok(())
@@ -400,8 +405,12 @@ impl AudioProcessor {
             &spec,
             None,
             None,
-        ).map_err(|e| {
-            log::warn!("Failed to open monitor source: {}. Trying default source...", e);
+        )
+        .map_err(|e| {
+            log::warn!(
+                "Failed to open monitor source: {}. Trying default source...",
+                e
+            );
             e
         });
 
@@ -418,7 +427,8 @@ impl AudioProcessor {
                     &spec,
                     None,
                     None,
-                ).map_err(|e| format!("Failed to create input stream: {}", e))?
+                )
+                .map_err(|e| format!("Failed to create input stream: {}", e))?
             }
         };
 
@@ -432,7 +442,8 @@ impl AudioProcessor {
             &spec,
             None,
             None,
-        ).map_err(|e| format!("Failed to create output stream: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create output stream: {}", e))?;
 
         log::info!("Audio streams created successfully");
         log::info!("Processing system audio through FXSound...");
@@ -487,12 +498,14 @@ impl AudioProcessor {
 pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     use pulse::context::{Context, FlagSet as ContextFlagSet};
     use pulse::mainloop::threaded::Mainloop;
-    use std::sync::{Arc, Mutex, Condvar};
+    use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
 
     // Create a threaded mainloop for the introspection query
     let mut mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
-    mainloop.start().map_err(|e| format!("Failed to start mainloop: {}", e))?;
+    mainloop
+        .start()
+        .map_err(|e| format!("Failed to start mainloop: {}", e))?;
 
     let mut context = Context::new(&mainloop, "FXSound Device Query")
         .ok_or("Failed to create PulseAudio context")?;
@@ -534,30 +547,28 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     let done_clone = Arc::clone(&done);
 
     let introspector = context.introspect();
-    let _op = introspector.get_sink_info_list(move |result| {
-        match result {
-            pulse::callbacks::ListResult::Item(sink_info) => {
-                let name = sink_info
-                    .description
-                    .as_ref()
-                    .map(|d| d.to_string())
-                    .unwrap_or_else(|| {
-                        sink_info
-                            .name
-                            .as_ref()
-                            .map(|n| n.to_string())
-                            .unwrap_or_else(|| "Unknown Output".to_string())
-                    });
-                if let Ok(mut list) = sinks_clone.lock() {
-                    list.push(name);
-                }
+    let _op = introspector.get_sink_info_list(move |result| match result {
+        pulse::callbacks::ListResult::Item(sink_info) => {
+            let name = sink_info
+                .description
+                .as_ref()
+                .map(|d| d.to_string())
+                .unwrap_or_else(|| {
+                    sink_info
+                        .name
+                        .as_ref()
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "Unknown Output".to_string())
+                });
+            if let Ok(mut list) = sinks_clone.lock() {
+                list.push(name);
             }
-            pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
-                let (lock, cvar) = &*done_clone;
-                if let Ok(mut finished) = lock.lock() {
-                    *finished = true;
-                    cvar.notify_one();
-                }
+        }
+        pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
+            let (lock, cvar) = &*done_clone;
+            if let Ok(mut finished) = lock.lock() {
+                *finished = true;
+                cvar.notify_one();
             }
         }
     });
@@ -569,7 +580,9 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
         let mut finished = lock.lock().map_err(|e| e.to_string())?;
         let timeout = Duration::from_secs(3);
         while !*finished {
-            let result = cvar.wait_timeout(finished, timeout).map_err(|e| e.to_string())?;
+            let result = cvar
+                .wait_timeout(finished, timeout)
+                .map_err(|e| e.to_string())?;
             finished = result.0;
             if result.1.timed_out() {
                 break;
