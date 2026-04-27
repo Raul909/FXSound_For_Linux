@@ -126,15 +126,18 @@ export default function Visualizer({ powered }) {
 
             const backendOk = await tryBackend();
             if (backendOk && !cancelled) {
-                // Poll backend at ~20fps
-                pollInterval = setInterval(async () => {
+                // Poll backend at ~20fps using recursive setTimeout to prevent overlapping invocations
+                async function pollBackend() {
+                    if (cancelled) return;
                     try {
                         const data = await invoke("get_visualizer_data");
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
                     } catch { /* ignore */ }
-                }, 50);
+                    pollInterval = setTimeout(pollBackend, 50);
+                }
+                pollBackend();
                 return;
             }
 
@@ -196,7 +199,10 @@ export default function Visualizer({ powered }) {
 
         return () => {
             cancelled = true;
-            if (pollInterval) clearInterval(pollInterval);
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                clearTimeout(pollInterval);
+            }
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             cleanupWebAudio();
         };
