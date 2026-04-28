@@ -126,15 +126,20 @@ export default function Visualizer({ powered }) {
 
             const backendOk = await tryBackend();
             if (backendOk && !cancelled) {
-                // Poll backend at ~20fps
-                pollInterval = setInterval(async () => {
+                // Poll backend at ~20fps, using recursive setTimeout to prevent overlapping executions
+                async function pollBackend() {
+                    if (cancelled) return;
                     try {
                         const data = await invoke("get_visualizer_data");
                         // Resample 32 bins → BAR_COUNT
                         const resampled = resampleData(data, BAR_COUNT);
                         targetData.current = resampled;
                     } catch { /* ignore */ }
-                }, 50);
+                    if (!cancelled) {
+                        pollInterval = setTimeout(pollBackend, 50);
+                    }
+                }
+                pollBackend();
                 return;
             }
 
