@@ -128,9 +128,6 @@ pub struct AudioEngine {
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
 
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -144,9 +141,6 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
             fft_processor,
             complex_buffer,
@@ -156,8 +150,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -609,5 +601,20 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_apply_limiter() {
+        let engine = AudioEngine::new();
+
+        // Test no scaling needed
+        let mut buffer_ok = [0.0, 0.5, -0.5, 1.0, -1.0];
+        engine.apply_limiter(&mut buffer_ok);
+        assert_eq!(buffer_ok, [0.0, 0.5, -0.5, 1.0, -1.0]);
+
+        // Test scaling needed (peak is 2.0, so scale should be 0.5)
+        let mut buffer_clip = [0.0, 1.0, -2.0, 1.5, -0.5];
+        engine.apply_limiter(&mut buffer_clip);
+        assert_eq!(buffer_clip, [0.0, 0.5, -1.0, 0.75, -0.25]);
     }
 }
