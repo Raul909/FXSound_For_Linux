@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FXSound for Linux</title>
+  <meta name="description" content="A free, open-source audio enhancer for Linux — 10-band EQ, effects, presets, and real-time visualizer." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #08080a;
+      color: #c5c5d0;
+      min-height: 100vh;
+    }
+
+    a { color: #e63462; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 80px 20px 60px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(230,52,98,0.12) 0%, transparent 65%);
+    }
+
+    .hero__logo {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #fff;
+    }
+    .hero__logo span { color: #e63462; }
+
+    .hero__tagline {
+      margin-top: 14px;
+      font-size: 18px;
+      color: #888;
+      max-width: 520px;
+      margin-inline: auto;
+      line-height: 1.6;
+    }
+
+    .hero__badges {
+      margin-top: 24px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      background: #16161d;
+      border: 1px solid #1e1e2a;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: #888;
+    }
+
+    /* ── Download buttons ── */
+    .downloads {
+      padding: 60px 20px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .downloads h2 {
+      text-align: center;
+      font-size: 22px;
+      color: #fff;
+      margin-bottom: 32px;
+      letter-spacing: 1px;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .download-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 20px 16px;
+      background: #0e0e12;
+      border: 1px solid #1e1e2a;
+      border-radius: 12px;
+      color: #c5c5d0;
+      font-size: 14px;
+      font-weight: 600;
+      transition: border-color 0.2s, transform 0.15s;
+      cursor: pointer;
+    }
+
+    .download-btn:hover {
+      border-color: #e63462;
+      transform: translateY(-2px);
+      text-decoration: none;
+      color: #fff;
+    }
+
+    .download-btn__icon { font-size: 28px; }
+    .download-btn__sub { font-size: 11px; color: #555; font-weight: 400; }
+
+    .download-btn--primary {
+      border-color: rgba(230,52,98,0.4);
+      background: linear-gradient(135deg, #16161d, #0e0e12);
+    }
+
+    /* ── Features ── */
+    .features {
+      padding: 60px 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      border-top: 1px solid #1e1e2a;
+    }
+
+    .features h2 {
+      text-align: center;
+      font-size: 22px;
+      color: #fff;
+      margin-bottom: 32px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: #0e0e12;
+      border: 1px solid #1e1e2a;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .feature-card__icon { font-size: 24px; margin-bottom: 10px; }
+    .feature-card__title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .feature-card__desc { font-size: 13px; color: #666; line-height: 1.5; }
+
+    /* ── Install commands ── */
+    .install {
+      padding: 60px 20px;
+      max-width: 700px;
+      margin: 0 auto;
+      border-top: 1px solid #1e1e2a;
+    }
+
+    .install h2 {
+      text-align: center;
+      font-size: 22px;
+      color: #fff;
+      margin-bottom: 32px;
+    }
+
+    .install-block { margin-bottom: 24px; }
+    .install-block__label {
+      font-size: 11px;
+      color: #555;
+      letter-spacing: 1.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    pre {
+      background: #0a0a0f;
+      border: 1px solid #1e1e2a;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #c5c5d0;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      border-top: 1px solid #1e1e2a;
+      font-size: 12px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <div class="hero__logo"><span>FX</span>SOUND</div>
+    <p class="hero__tagline">A free, open-source audio enhancer for Linux — 10-band EQ, effects, presets, and real-time visualizer.</p>
+    <div class="hero__badges">
+      <span class="badge">MIT License</span>
+      <span class="badge">Tauri + Rust</span>
+      <span class="badge">PipeWire / PulseAudio</span>
+      <span class="badge">React 19</span>
+    </div>
+  </section>
+
+  <section class="downloads">
+    <h2>DOWNLOAD</h2>
+    <div class="download-grid">
+      <a class="download-btn download-btn--primary" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage">
+        <span class="download-btn__icon">📦</span>
+        AppImage
+        <span class="download-btn__sub">Universal · All distros</span>
+      </a>
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb">
+        <span class="download-btn__icon">🟠</span>
+        .deb
+        <span class="download-btn__sub">Ubuntu · Debian · Mint</span>
+      </a>
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.0-1.x86_64.rpm">
+        <span class="download-btn__icon">🔵</span>
+        .rpm
+        <span class="download-btn__sub">Fedora · RHEL · openSUSE</span>
+      </a>
+      <a class="download-btn" href="https://snapcraft.io/fxsound-linux">
+        <span class="download-btn__icon">🟣</span>
+        Snap
+        <span class="download-btn__sub">snapcraft.io</span>
+      </a>
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest">
+        <span class="download-btn__icon">⭐</span>
+        GitHub Releases
+        <span class="download-btn__sub">All versions</span>
+      </a>
+    </div>
+  </section>
+
+  <section class="features">
+    <h2>FEATURES</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-card__icon">🎚️</div>
+        <div class="feature-card__title">10-Band Parametric EQ</div>
+        <div class="feature-card__desc">Fine-tune from 32Hz to 16kHz, ±12dB per band with biquad filters.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">✨</div>
+        <div class="feature-card__title">5 Audio Effects</div>
+        <div class="feature-card__desc">Fidelity, Ambiance, Dynamic Boost, 3D Surround, HyperBass.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">🎵</div>
+        <div class="feature-card__title">10 Built-in Presets</div>
+        <div class="feature-card__desc">Music, Movies, Gaming, Podcast, Bass Boost, and more.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">📊</div>
+        <div class="feature-card__title">Real-time Visualizer</div>
+        <div class="feature-card__desc">FFT-based spectrum display with smooth 60fps animation.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">🔊</div>
+        <div class="feature-card__title">PipeWire / PulseAudio</div>
+        <div class="feature-card__desc">Processes your system audio in real time — not just a UI mockup.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card__icon">⚡</div>
+        <div class="feature-card__title">Native &amp; Lightweight</div>
+        <div class="feature-card__desc">Built with Tauri (Rust + React) for minimal resource usage.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="install">
+    <h2>INSTALL</h2>
+
+    <div class="install-block">
+      <div class="install-block__label">AppImage (Universal)</div>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage
+chmod +x fxsound-linux_1.0.0_amd64.AppImage
+./fxsound-linux_1.0.0_amd64.AppImage</pre>
+    </div>
+
+    <div class="install-block">
+      <div class="install-block__label">Debian / Ubuntu / Mint</div>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb
+sudo dpkg -i fxsound-linux_1.0.0_amd64.deb</pre>
+    </div>
+
+    <div class="install-block">
+      <div class="install-block__label">Fedora / RHEL / openSUSE</div>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.0-1.x86_64.rpm
+sudo rpm -i fxsound-linux-1.0.0-1.x86_64.rpm</pre>
+    </div>
+
+    <div class="install-block">
+      <div class="install-block__label">Snap</div>
+      <pre>sudo snap install fxsound-linux</pre>
+    </div>
+
+    <div class="install-block">
+      <div class="install-block__label">Arch Linux (AUR)</div>
+      <pre>yay -S fxsound-linux</pre>
+    </div>
+  </section>
+
+  <footer>
+    MIT © 2025 · <a href="https://github.com/Raul909/FXSound_For_Linux">GitHub</a> ·
+    <a href="https://github.com/Raul909/FXSound_For_Linux/issues">Report a Bug</a>
+    <br><br>
+    Made for the Linux audio community 🐧
+  </footer>
+
+</body>
+</html>

@@ -115,8 +115,10 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
+    /// Cached FFT processor and buffer to avoid repeated allocations.
+    fft_processor: Arc<dyn Fft<f32>>,
     complex_buffer: Vec<Complex<f32>>,
+
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -127,10 +129,6 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -138,14 +136,12 @@ impl AudioEngine {
         let mut planner = FftPlanner::new();
         let fft_processor = planner.plan_fft_forward(FFT_SIZE);
         let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
+
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
             .iter()
             .map(|_| BiquadFilter::flat())
             .collect();
-
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
 
         Self {
             fft_processor,
@@ -156,8 +152,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 

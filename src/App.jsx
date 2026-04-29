@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, DEVICES } from "./constants";
@@ -52,7 +52,7 @@ export default function App() {
    * Apply a named preset — updates EQ bands, effects, and sends
    * each value to the Rust backend.
    */
-  function applyPreset(name) {
+  const applyPreset = useCallback((name) => {
     if (!PRESET_EQ[name]) return;
 
     setPreset(name);
@@ -68,7 +68,7 @@ export default function App() {
     Object.entries(PRESET_FX[name]).forEach(([key, value]) => {
       invoke("set_effect", { effect: key, value }).catch(console.error);
     });
-  }
+  }, []);
 
   // Sync power state to the Rust backend whenever it changes
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function App() {
   // ---------- Dropdown Data ----------
 
   // Configuration for the two dropdown selectors (preset + output device)
-  const dropdowns = [
+  const dropdowns = useMemo(() => [
     {
       label: "PRESET",
       value: preset,
@@ -117,16 +117,16 @@ export default function App() {
       onChange: setDevice,
       showCustom: false,
     },
-  ];
+  ], [preset, device, devices, applyPreset]);
 
   // Effect sliders with display labels and their keys in PRESET_FX
-  const effectSliders = [
+  const effectSliders = useMemo(() => [
     { label: "Fidelity", key: "fidelity" },
     { label: "Ambiance", key: "ambiance" },
     { label: "Dynamic Boost", key: "dynamic" },
     { label: "3D Surround", key: "surround" },
     { label: "HyperBass", key: "bass" },
-  ];
+  ], []);
 
   // ---------- Render ----------
 

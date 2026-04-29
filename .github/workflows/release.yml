@@ -6,59 +6,87 @@ on:
       - 'v*'
 
 jobs:
-  release:
+  # ── 1. Build native packages (AppImage, .deb, .rpm) ──────────────────────
+  build:
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-22.04]
-    
-    runs-on: ${{ matrix.platform }}
-    
+    runs-on: ubuntu-22.04
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-      
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-22.04'
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libwebkit2gtk-4.0-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libssl-dev \
-            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            build-essential curl wget file \
+            libssl-dev libgtk-3-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libpulse-dev
-      
-      - name: Install frontend dependencies
-        run: npm ci
-      
-      - name: Build the app
+            librsvg2-dev libpulse-dev
+
+      - run: npm ci
+
+      - name: Build Tauri app
         run: npm run tauri:build
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/rpm/*.rpm
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
-          draft: false
-          prerelease: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 2. Publish to Snap Store ──────────────────────────────────────────────
+  snap:
+    needs: build
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Snap
+        uses: snapcore/action-build@v1
+        id: snapcraft
+
+      - name: Publish to Snap Store
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: stable
+
+  # ── 3. Deploy Cloudflare Pages landing site ───────────────────────────────
+  deploy-landing:
+    needs: build
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy landing --project-name=fxsound-linux

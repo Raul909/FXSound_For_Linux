@@ -1,0 +1,51 @@
+name: Flathub Submission
+
+# Runs manually — trigger after a release is published
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+
+jobs:
+  submit:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build Flatpak
+        run: |
+          flatpak-builder --force-clean --user --install-deps-from=flathub \
+            build-dir com.fxsound.linux.yml
+
+      - name: Bundle Flatpak repo
+        run: |
+          flatpak-builder --repo=repo --force-clean \
+            build-dir com.fxsound.linux.yml
+          flatpak build-bundle repo fxsound-linux.flatpak com.fxsound.linux
+
+      - name: Upload Flatpak bundle as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-bundle
+          path: fxsound-linux.flatpak
+
+      - name: Instructions
+        run: |
+          echo "========================================================"
+          echo "Flatpak bundle built: fxsound-linux.flatpak"
+          echo ""
+          echo "To submit to Flathub:"
+          echo "1. Fork https://github.com/flathub/flathub"
+          echo "2. Create a new branch: new-app/com.fxsound.linux"
+          echo "3. Add com.fxsound.linux.yml to the branch"
+          echo "4. Open a Pull Request to flathub/flathub"
+          echo "========================================================"
