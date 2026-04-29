@@ -128,9 +128,6 @@ pub struct AudioEngine {
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
 
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -144,12 +141,7 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -157,7 +149,7 @@ impl AudioEngine {
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            complex_buffer,
         }
     }
 
@@ -609,5 +601,31 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_process_audio_silence() {
+        let mut engine = AudioEngine::new();
+        let mut output = vec![1.0; 100]; // Initialize with non-zero
+
+        // Test with complete silence
+        let input_silence = vec![0.0; 100];
+        engine.process_audio(&input_silence, &mut output);
+        assert!(output.iter().all(|&x| x == 0.0), "Output should be silenced when input is silent");
+
+        // Test with near-silent input (RMS < 0.001)
+        // If RMS < 0.001, then sum(x^2)/N < 0.000001
+        // Let's use a constant value of 0.0005. RMS will be sqrt(N * 0.0005^2 / N) = 0.0005 < 0.001
+        let mut output = vec![1.0; 100];
+        let input_near_silent = vec![0.0005; 100];
+        engine.process_audio(&input_near_silent, &mut output);
+        assert!(output.iter().all(|&x| x == 0.0), "Output should be silenced when input is near silent");
+
+        // Test with non-silent input (RMS >= 0.001)
+        // Let's use a constant value of 0.002. RMS will be 0.002 >= 0.001
+        let mut output = vec![1.0; 100];
+        let input_loud = vec![0.002; 100];
+        engine.process_audio(&input_loud, &mut output);
+        assert!(!output.iter().all(|&x| x == 0.0), "Output should NOT be completely silenced when input is loud enough");
     }
 }
