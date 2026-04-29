@@ -610,4 +610,35 @@ mod tests {
             assert_eq!(filter.process(sample, 1), sample);
         }
     }
+
+    #[test]
+    fn test_set_power() {
+        let mut engine = AudioEngine::new();
+
+        // Should default to powered on
+        assert_eq!(engine.powered, true);
+
+        // Turn off
+        engine.set_power(false);
+        assert_eq!(engine.powered, false);
+
+        // Turn back on
+        engine.set_power(true);
+        assert_eq!(engine.powered, true);
+    }
+
+    #[test]
+    fn test_process_audio_power_off() {
+        let mut engine = AudioEngine::new();
+        engine.set_power(false);
+
+        // High enough RMS to pass the silence threshold if it were powered on
+        let input = vec![0.5; 1024];
+        let mut output = vec![1.0; 1024];
+
+        engine.process_audio(&input, &mut output);
+
+        // When powered off, output should be filled with 0.0
+        assert!(output.iter().all(|&x| x == 0.0));
+    }
 }
