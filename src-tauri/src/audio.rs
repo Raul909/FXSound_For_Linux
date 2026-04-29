@@ -592,6 +592,30 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 mod tests {
     use super::*;
 
+
+    #[test]
+    fn test_set_effect() {
+        let mut engine = AudioEngine::new();
+
+        // Normal value
+        engine.set_effect("fidelity", 50.0);
+        assert_eq!(engine.effects.get("fidelity"), Some(&50.0));
+
+        // Below lower bound
+        engine.set_effect("fidelity", -10.0);
+        assert_eq!(engine.effects.get("fidelity"), Some(&0.0));
+
+        // Above upper bound
+        engine.set_effect("fidelity", 150.0);
+        assert_eq!(engine.effects.get("fidelity"), Some(&100.0));
+
+        // Another effect
+        engine.set_effect("bass", 75.0);
+        assert_eq!(engine.effects.get("bass"), Some(&75.0));
+        // Verify fidelity wasn't overwritten
+        assert_eq!(engine.effects.get("fidelity"), Some(&100.0));
+    }
+
     #[test]
     fn test_filter_flat() {
         let mut filter = BiquadFilter::flat();
