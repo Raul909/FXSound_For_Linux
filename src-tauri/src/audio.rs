@@ -115,8 +115,6 @@ impl BiquadFilter {
 /// Holds the EQ band gains, effect values, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
-    fft_processor: Arc<dyn rustfft::Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
     powered: bool,
     eq_bands: [f32; 10],
     effects: HashMap<String, f32>,
@@ -135,7 +133,7 @@ pub struct AudioEngine {
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let mut planner = FftPlanner::new();
+        let mut planner: FftPlanner<f32> = FftPlanner::new();
         let fft_processor = planner.plan_fft_forward(FFT_SIZE);
         let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
         // Start with flat (0 dB) filters for all 10 bands
@@ -144,12 +142,7 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
-            fft_processor,
-            complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
             effects: HashMap::new(),
@@ -157,7 +150,7 @@ impl AudioEngine {
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            complex_buffer,
         }
     }
 
@@ -609,5 +602,21 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_set_power() {
+        let mut engine = AudioEngine::new();
+
+        // Verify default state
+        assert_eq!(engine.powered, true);
+
+        // Verify setting power off
+        engine.set_power(false);
+        assert_eq!(engine.powered, false);
+
+        // Verify setting power back on
+        engine.set_power(true);
+        assert_eq!(engine.powered, true);
     }
 }
