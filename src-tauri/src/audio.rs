@@ -244,18 +244,28 @@ impl AudioEngine {
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
         output.copy_from_slice(input);
 
+        // Pre-compute active bands to avoid branching in the inner loop
+        let mut active_bands = [0usize; 10];
+        let mut active_count = 0;
         for band in 0..10 {
             // Skip flat bands for efficiency
-            if self.eq_bands[band].abs() < 0.1 {
-                continue;
+            if self.eq_bands[band].abs() >= 0.1 {
+                active_bands[active_count] = band;
+                active_count += 1;
             }
+        }
 
-            // Process each sample through this band's biquad filter
-            // Interleaved stereo: even indices = left, odd = right
-            for (i, sample) in output.iter_mut().enumerate() {
-                let channel = i % (CHANNELS as usize);
-                *sample = self.filters[band].process(*sample, channel);
+        let active_bands_slice = &active_bands[..active_count];
+
+        // Process each sample through all active biquad filters
+        // Interleaved stereo: even indices = left, odd = right
+        for (i, sample) in output.iter_mut().enumerate() {
+            let channel = i % (CHANNELS as usize);
+            let mut s = *sample;
+            for &band in active_bands_slice {
+                s = self.filters[band].process(s, channel);
             }
+            *sample = s;
         }
     }
 
