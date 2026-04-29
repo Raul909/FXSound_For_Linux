@@ -593,6 +593,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_audio_engine_set_power() {
+        let mut engine = AudioEngine::new();
+
+        assert_eq!(engine.powered, true);
+
+        engine.set_power(false);
+        assert_eq!(engine.powered, false);
+
+        engine.set_power(true);
+        assert_eq!(engine.powered, true);
+    }
+
+    #[test]
     fn test_filter_flat() {
         let mut filter = BiquadFilter::flat();
 
