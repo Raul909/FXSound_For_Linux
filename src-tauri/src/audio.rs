@@ -128,15 +128,12 @@ pub struct AudioEngine {
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
 
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
+
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
+
         let complex_buffer = vec![Complex::new(0.0, 0.0); FFT_SIZE];
         // Start with flat (0 dB) filters for all 10 bands
         let filters = EQ_FREQUENCIES
@@ -156,8 +153,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -591,6 +586,28 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_set_eq_band() {
+        let mut engine = AudioEngine::new();
+
+        // Test normal assignment
+        engine.set_eq_band(0, 5.0);
+        assert_eq!(engine.eq_bands[0], 5.0);
+
+        // Test upper clamp
+        engine.set_eq_band(1, 15.0);
+        assert_eq!(engine.eq_bands[1], 12.0);
+
+        // Test lower clamp
+        engine.set_eq_band(2, -15.0);
+        assert_eq!(engine.eq_bands[2], -12.0);
+
+        // Test out of bounds band
+        engine.set_eq_band(10, 5.0);
+        // The array is only [f32; 10], so band 10 is ignored.
+        // If it didn't return early, this would panic, so no panic means success.
+    }
 
     #[test]
     fn test_filter_flat() {
