@@ -33,3 +33,18 @@ src-tauri/target
 # OS
 .DS_Store
 Thumbs.db
+# Added by code-review-graph
+.code-review-graph/
+
+# AI / agent tool files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.windsurfrules
+.mcp.json
+.opencode.json
+.claude/
+.kiro/
+.jules/
+.Jules/
