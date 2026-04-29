@@ -13,3 +13,6 @@ Iterating through the entire audio buffer for each active EQ band in sequence ca
 
 **Action:**
 Inverted the processing loop in `apply_eq` to iterate over samples in the outer loop and active filters in the inner loop, pre-identifying active bands in a stack-allocated array to avoid heap allocations and branching in the hot path.
+## 2026-04-29 - Inefficient Loop Nesting in EQ Processing
+**Learning:** Swapping nested loops in DSP paths to iterate over the buffer once and apply all active filters per sample improves CPU cache locality and reduces memory bandwidth overhead.
+**Action:** Refactored `AudioEngine::apply_eq` to pre-compute active EQ bands and process each audio sample completely through all active filters before moving to the next sample.
