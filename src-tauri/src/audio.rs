@@ -127,10 +127,6 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
-
-    /// Cached FFT processor and buffers to avoid repeated allocations.
-    fft_processor: Arc<dyn Fft<f32>>,
-    complex_buffer: Vec<Complex<f32>>,
 }
 
 impl AudioEngine {
@@ -144,9 +140,6 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
-        let mut planner = FftPlanner::new();
-        let fft_processor = planner.plan_fft_forward(FFT_SIZE);
-
         Self {
             fft_processor,
             complex_buffer,
@@ -156,8 +149,6 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
-            fft_processor,
-            complex_buffer: vec![Complex::new(0.0, 0.0); FFT_SIZE],
         }
     }
 
@@ -609,5 +600,27 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_apply_eq() {
+        let mut engine = AudioEngine::new();
+        let input = vec![0.1, -0.2, 0.3, -0.4, 0.5, -0.6];
+        let mut output = vec![0.0; input.len()];
+
+        // 1. Test flat EQ (should copy input exactly)
+        engine.apply_eq(&input, &mut output);
+        assert_eq!(input, output);
+
+        // 2. Test with some EQ applied
+        engine.set_eq_band(0, 5.0); // Boost low band
+        engine.set_eq_band(5, -5.0); // Cut mid band
+        engine.apply_eq(&input, &mut output);
+
+        // The output should now differ from the input
+        assert_ne!(input, output);
+
+        // But the length should remain the same
+        assert_eq!(input.len(), output.len());
     }
 }

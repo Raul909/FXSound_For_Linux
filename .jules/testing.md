@@ -1,0 +1,3 @@
+## 2026-04-29 - Testing the Audio DSP Engine
+**Learning:** When adding tests for real-time DSP logic (like `apply_eq` in `AudioEngine`), verify that processing handles the "flat" passthrough state optimally without modifying data, and handles the "active" state by safely mutating output buffers without changing buffer length. Additionally, duplicate struct field definitions (like `fft_processor` and `complex_buffer`) can block compilation and must be safely pruned without breaking initialization.
+**Action:** Wrote `test_apply_eq` in `src-tauri/src/audio.rs` covering both flat and modified EQ band cases, while actively removing duplicate struct fields to fix compiler errors.
