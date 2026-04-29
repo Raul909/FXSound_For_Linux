@@ -5,3 +5,6 @@ The real-time audio loop was performing multiple vector allocations per iteratio
 
 **Action:**
 Pre-allocated buffers in the audio loop and cached the FFT processor and complex buffers in the `AudioEngine`. Used in-place updates with `zip` and `chunks_exact_mut` to eliminate allocations.
+## 2026-04-29 - Optimize Audio Effects Lookups
+**Learning:** HashMap string lookups in hot audio paths introduce unnecessary overhead. Using a dedicated struct avoids this overhead and allows for contiguous memory access.
+**Action:** Replaced `HashMap<String, f32>` with `AudioEffects` struct in `AudioEngine`.
