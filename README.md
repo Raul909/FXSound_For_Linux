@@ -1,10 +1,11 @@
 # FXSound for Linux
 
-> A free, open-source audio enhancer for Linux — with a 10-band equalizer, effects, presets, and real-time audio visualization.
+> A free, open-source audio enhancer for Linux — 10-band EQ, effects, presets, and real-time audio visualization.
 
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
 [![React](https://img.shields.io/badge/React-19-61dafb?style=for-the-badge&logo=react)](https://reactjs.org)
 [![PipeWire](https://img.shields.io/badge/PipeWire-Compatible-orange?style=for-the-badge)](https://pipewire.org/)
+[![Snap](https://img.shields.io/badge/Snap-Store-82BEA0?style=for-the-badge&logo=snapcraft)](https://snapcraft.io/fxsound-linux)
 
 ---
 
@@ -13,6 +14,8 @@
 FXSound is a popular Windows audio enhancer — but it has **no Linux version**. This project is a **full Linux-native recreation** with real PipeWire/PulseAudio audio processing, built with Tauri (Rust + React).
 
 **This isn't just a UI mockup — it actually processes your system audio through a 10-band EQ and effects in real time.**
+
+🌐 **Landing page:** https://fxsound-linux.pages.dev
 
 ---
 
@@ -26,10 +29,10 @@ FXSound is a popular Windows audio enhancer — but it has **no Linux version**.
 
 ## Features
 
-- **10-Band Parametric Equalizer** — fine-tune from 32Hz to 16kHz, -12dB to +12dB per band
+- **10-Band Parametric Equalizer** — biquad peak filters from 32Hz to 16kHz, ±12dB per band
 - **5 Audio Effects** — Fidelity, Ambiance, Dynamic Boost, 3D Surround, HyperBass
 - **10 Built-in Presets** — Music, Movies, Gaming, Podcast, Bass Boost, Vocal Boost, Deep Bass, Treble Boost, Night Mode, Flat
-- **Real-time Audio Visualizer** — FFT-based spectrum display with 32 frequency bins
+- **Real-time Audio Visualizer** — canvas-based FFT spectrum display at 60fps
 - **PipeWire/PulseAudio Integration** — processes system audio in real time
 - **Power Toggle** — instantly bypass all audio processing
 - **Authentic FXSound Dark UI** — black and red theme matching the original Windows app
@@ -61,13 +64,19 @@ wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsou
 sudo rpm -i fxsound-linux-1.0.0-1.x86_64.rpm
 ```
 
+### Snap
+
+```bash
+sudo snap install fxsound-linux
+```
+
 ### Arch Linux (AUR)
 
 ```bash
 yay -S fxsound-linux
 ```
 
-[Download Latest Release](https://github.com/Raul909/FXSound_For_Linux/releases/latest)
+[→ Download Latest Release](https://github.com/Raul909/FXSound_For_Linux/releases/latest)
 
 ---
 
@@ -82,7 +91,7 @@ cd FXSound_For_Linux
 sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
   librsvg2-dev libpulse-dev build-essential curl wget
 
-# Install Rust (if not already installed)
+# Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Install Node dependencies
@@ -110,28 +119,42 @@ npm run tauri:build
 
 ---
 
+## Architecture
+
+- **Frontend** (`src/`) — React 19 with `useCallback`/`useMemo` throughout; canvas-based visualizer (zero DOM mutations at 60fps)
+- **Backend** (`src-tauri/src/audio.rs`) — biquad IIR filters per EQ band, FFT via RustFFT, PulseAudio capture/playback loop
+- **IPC** — Tauri `invoke()` calls: `set_eq_band`, `set_effect`, `set_power`, `get_visualizer_data`, `get_audio_devices`
+
+---
+
 ## Roadmap
 
-- [x] 10-band EQ with draggable controls
+- [x] 10-band EQ with biquad filters
 - [x] 5 effect sliders with presets
-- [x] Real-time visualizer
+- [x] Real-time canvas visualizer (60fps)
 - [x] Output device selector
 - [x] Power toggle / bypass
 - [x] PulseAudio integration
-- [x] FFT-based visualizer
-- [ ] Biquad EQ filters
+- [x] GitHub Actions release pipeline
+- [x] Snap Store publishing
+- [x] Cloudflare Pages landing site
 - [ ] Reverb (Ambiance effect)
 - [ ] HRTF 3D Surround
 - [ ] Save/export custom presets
 - [ ] Per-application audio routing
 - [ ] System tray integration
-- [ ] Flatpak packaging
+- [ ] Flatpak / Flathub
 
 ---
 
 ## Deployment
 
-See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for guides on publishing to Flathub, Snap Store, and AUR.
+Releases are automated via GitHub Actions on every `git tag v*` push:
+- Builds AppImage, .deb, .rpm → published to GitHub Releases
+- Publishes to Snap Store
+- Deploys landing page to Cloudflare Pages
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for manual deployment guides.
 
 ---
 
@@ -166,7 +189,6 @@ Yes, completely free and open-source (MIT license).
 ## Related
 
 - [FXSound (Official, Windows only)](https://www.fxsound.com)
-- [FXSound GitHub](https://github.com/fxsound2/fxsound-app)
 - [EasyEffects](https://github.com/wwmm/easyeffects) — another great Linux audio tool
 
 ---
@@ -178,5 +200,6 @@ MIT © 2025 — Free to use, modify, and distribute.
 <p align="center">
   Made for the Linux audio community 🐧<br/>
   <a href="https://github.com/Raul909/FXSound_For_Linux/issues">Report Bug</a> ·
-  <a href="https://github.com/Raul909/FXSound_For_Linux/issues">Request Feature</a>
+  <a href="https://github.com/Raul909/FXSound_For_Linux/issues">Request Feature</a> ·
+  <a href="https://fxsound-linux.pages.dev">Website</a>
 </p>
