@@ -1,0 +1,4 @@
+## 2026-04-30 - Poisoned Mutex DoS Vulnerability
+**Vulnerability:** The application uses `.unwrap()` on `Mutex::lock()` when accessing the shared `AudioEngine` in both `get_fft_data` and the main audio processing loop (`audio_loop`).
+**Learning:** If a panic occurs within the audio processing code (or elsewhere while holding the mutex), the mutex becomes "poisoned". Subsequent calls to `.unwrap()` will panic, causing the entire backend (and audio loop) to crash repeatedly, leading to a persistent Denial of Service (DoS).
+**Prevention:** Handle mutex poisoning safely by using `.unwrap_or_else(|e| e.into_inner())` or by bubbling up errors when appropriate, rather than using `.unwrap()`. In Rust, bubbling the error up via `?` is useful when you want the caller to handle the poison, but to actually recover the inner data you need to use `.into_inner()`.
