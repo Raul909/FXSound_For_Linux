@@ -549,3 +549,10 @@ select option {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+/* ---- Focus Outlines ---- */
+.eq-band__track:focus-visible,
+.effect-slider__track:focus-visible {
+  outline: none;
+  border-color: #e63462;
+  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.3);
+}

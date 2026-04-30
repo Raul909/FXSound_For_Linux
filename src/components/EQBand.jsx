@@ -13,82 +13,104 @@ import { useRef, memo } from "react";
  *   disabled — whether the slider is interactive
  */
 const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
-    const trackRef = useRef(null);
+  const trackRef = useRef(null);
 
-    // Convert a mouse Y position to a gain value (-12 to +12 dB)
-    function yToGain(mouseY) {
-        const rect = trackRef.current.getBoundingClientRect();
-        const ratio = 1 - (mouseY - rect.top) / rect.height; // 0 at bottom, 1 at top
-        return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
+  // Convert a mouse Y position to a gain value (-12 to +12 dB)
+  function yToGain(mouseY) {
+    const rect = trackRef.current.getBoundingClientRect();
+    const ratio = 1 - (mouseY - rect.top) / rect.height; // 0 at bottom, 1 at top
+    return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
+  }
+
+  // Handle keyboard interaction
+  function handleKeyDown(event) {
+    if (disabled) return;
+    if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+      event.preventDefault();
+      onChange(Math.min(12, value + 1));
+    } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      onChange(Math.max(-12, value - 1));
+    }
+  }
+
+  // Handle drag interaction on the slider track
+  function handleMouseDown(event) {
+    if (disabled) return;
+
+    let lastValue = yToGain(event.clientY);
+    onChange(lastValue);
+
+    function handleMouseMove(moveEvent) {
+      const newValue = yToGain(moveEvent.clientY);
+      if (newValue !== lastValue) {
+        lastValue = newValue;
+        onChange(newValue);
+      }
     }
 
-    // Handle drag interaction on the slider track
-    function handleMouseDown(event) {
-        if (disabled) return;
-
-        let lastValue = yToGain(event.clientY);
-        onChange(lastValue);
-
-        function handleMouseMove(moveEvent) {
-            const newValue = yToGain(moveEvent.clientY);
-            if (newValue !== lastValue) {
-                lastValue = newValue;
-                onChange(newValue);
-            }
-        }
-
-        function handleMouseUp() {
-            window.removeEventListener("mousemove", handleMouseMove);
-            window.removeEventListener("mouseup", handleMouseUp);
-        }
-
-        window.addEventListener("mousemove", handleMouseMove);
-        window.addEventListener("mouseup", handleMouseUp);
+    function handleMouseUp() {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     }
 
-    // Calculate thumb position as a percentage (0% = -12dB bottom, 100% = +12dB top)
-    const thumbPercent = ((value + 12) / 24) * 100;
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }
 
-    return (
-        <div className="eq-band">
-            {/* Current gain value label */}
-            <span className="eq-band__value">
-                {value > 0 ? `+${value}` : value}
-            </span>
+  // Calculate thumb position as a percentage (0% = -12dB bottom, 100% = +12dB top)
+  const thumbPercent = ((value + 12) / 24) * 100;
 
-            {/* Vertical slider track */}
-            <div
-                ref={trackRef}
-                onMouseDown={handleMouseDown}
-                className="eq-band__track"
-                style={{ cursor: disabled ? "default" : "pointer" }}
-            >
-                {/* Center line marking 0 dB */}
-                <div className="eq-band__center-line" />
+  return (
+    <div className="eq-band">
+      {/* Current gain value label */}
+      <span className="eq-band__value">{value > 0 ? `+${value}` : value}</span>
 
-                {/* Dashed vertical guide line */}
-                <svg className="eq-band__guide" width="2" height="140">
-                    <line
-                        x1="1" y1="0" x2="1" y2="140"
-                        stroke="#e33250" strokeWidth="1"
-                        strokeDasharray="5,2" opacity="0.4"
-                    />
-                </svg>
+      {/* Vertical slider track */}
+      <div
+        ref={trackRef}
+        onMouseDown={handleMouseDown}
+        onKeyDown={handleKeyDown}
+        className="eq-band__track"
+        style={{ cursor: disabled ? "default" : "pointer" }}
+        tabIndex={disabled ? -1 : 0}
+        role="slider"
+        aria-label={`${freq} EQ Band`}
+        aria-valuenow={value}
+        aria-valuemin={-12}
+        aria-valuemax={12}
+      >
+        {/* Center line marking 0 dB */}
+        <div className="eq-band__center-line" />
 
-                {/* Draggable thumb */}
-                <div
-                    className="eq-band__thumb"
-                    style={{
-                        top: `${100 - thumbPercent}%`,
-                        opacity: disabled ? 0.3 : 1,
-                    }}
-                />
-            </div>
+        {/* Dashed vertical guide line */}
+        <svg className="eq-band__guide" width="2" height="140">
+          <line
+            x1="1"
+            y1="0"
+            x2="1"
+            y2="140"
+            stroke="#e33250"
+            strokeWidth="1"
+            strokeDasharray="5,2"
+            opacity="0.4"
+          />
+        </svg>
 
-            {/* Frequency label */}
-            <span className="eq-band__freq">{freq}</span>
-        </div>
-    );
+        {/* Draggable thumb */}
+        <div
+          className="eq-band__thumb"
+          style={{
+            top: `${100 - thumbPercent}%`,
+            opacity: disabled ? 0.3 : 1,
+          }}
+        />
+      </div>
+
+      {/* Frequency label */}
+      <span className="eq-band__freq">{freq}</span>
+    </div>
+  );
 });
 
 export default EQBand;
