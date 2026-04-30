@@ -140,7 +140,10 @@ export default function Visualizer({ powered }) {
             if (cancelled) return;
 
             if (await tryBackend()) {
-                pollInterval = setInterval(async () => {
+                // ⚡ Bolt: Recursively use setTimeout to prevent overlapping executions if
+                // the async Tauri backend endpoint takes longer than 50ms to respond.
+                async function pollBackend() {
+                    if (cancelled) return;
                     try {
                         const data = await invoke("get_visualizer_data");
                         const src = targetData.current;
@@ -152,7 +155,11 @@ export default function Visualizer({ powered }) {
                             src[i] = data[si] * (1 - f) + data[ni] * f;
                         }
                     } catch { /* ignore */ }
-                }, 50);
+                    if (!cancelled) {
+                        pollInterval = setTimeout(pollBackend, 50);
+                    }
+                }
+                pollBackend();
                 return;
             }
 
@@ -177,14 +184,19 @@ export default function Visualizer({ powered }) {
 
             // Idle animation
             let phase = 0;
-            pollInterval = setInterval(() => {
+            function pollIdle() {
+                if (cancelled) return;
                 phase += 0.08;
                 const tgt = targetData.current;
                 for (let i = 0; i < BAR_COUNT; i++) {
                     tgt[i] = (Math.sin(phase + i * 0.3) * 0.5 + 0.5 +
                                Math.sin(phase * 1.3 + i * 0.2) * 0.3 + 0.3) * 35 + 5;
                 }
-            }, 50);
+                if (!cancelled) {
+                    pollInterval = setTimeout(pollIdle, 50);
+                }
+            }
+            pollIdle();
         }
 
         init();
@@ -198,7 +210,7 @@ export default function Visualizer({ powered }) {
 
         return () => {
             cancelled = true;
-            if (pollInterval) clearInterval(pollInterval);
+            if (pollInterval) clearTimeout(pollInterval);
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             cleanupWebAudio();
         };
