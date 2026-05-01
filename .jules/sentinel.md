@@ -1,0 +1,4 @@
+## 2026-05-01 - Prevent Audio Engine DoS from Poisoned Mutexes
+**Vulnerability:** The audio thread and visualizer endpoints used `.unwrap()` on `Mutex::lock()`. If a thread panicked while holding the audio engine mutex, the mutex would become poisoned, causing all subsequent `.unwrap()` calls on `lock()` to panic. This leads to a Denial of Service (DoS) where the core audio processing loop crashes and permanently stops functioning.
+**Learning:** In Rust, handling a poisoned mutex by either unwrapping (crashing) or returning an error (bubbling up) doesn't clear the poison state. If the data protected by the mutex is still structurally valid or can be safely recovered, returning an error results in a permanent DoS.
+**Prevention:** When data consistency allows, safely recover the `MutexGuard` from a poisoned mutex using `.unwrap_or_else(|e| e.into_inner())` to ensure critical background threads (like the audio loop) continue to function instead of failing permanently.
