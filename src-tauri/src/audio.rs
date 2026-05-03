@@ -249,6 +249,14 @@ impl AudioEngine {
             }
         }
 
+        // ⚡ Bolt Optimization: Early Return
+        // If no EQ bands are active (flat state), skip the entire O(N) sample
+        // processing loop to save CPU cache bandwidth and avoid redundant assignments.
+        // Impact: Saves ~1024 iterations per audio frame when EQ is bypassed.
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
