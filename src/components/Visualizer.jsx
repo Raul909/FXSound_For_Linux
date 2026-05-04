@@ -108,6 +108,7 @@ export default function Visualizer({ powered }) {
     useEffect(() => {
         let cancelled = false;
         let pollInterval = null;
+        let pollTimeout = null;
         const lastTimeRef = { current: performance.now() };
 
         async function tryBackend() {
@@ -140,7 +141,8 @@ export default function Visualizer({ powered }) {
             if (cancelled) return;
 
             if (await tryBackend()) {
-                pollInterval = setInterval(async () => {
+                async function poll() {
+                    if (cancelled) return;
                     try {
                         const data = await invoke("get_visualizer_data");
                         const src = targetData.current;
@@ -152,7 +154,11 @@ export default function Visualizer({ powered }) {
                             src[i] = data[si] * (1 - f) + data[ni] * f;
                         }
                     } catch { /* ignore */ }
-                }, 50);
+                    if (!cancelled) {
+                        pollTimeout = setTimeout(poll, 50);
+                    }
+                }
+                poll();
                 return;
             }
 
@@ -199,6 +205,7 @@ export default function Visualizer({ powered }) {
         return () => {
             cancelled = true;
             if (pollInterval) clearInterval(pollInterval);
+            if (pollTimeout) clearTimeout(pollTimeout);
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             cleanupWebAudio();
         };
