@@ -1,0 +1,4 @@
+## 2026-05-05 - Fix Denial of Service (DoS) from poisoned mutex panics
+**Vulnerability:** The application uses `.unwrap()` and `.map_err(|e| e.to_string())?` on poisoned mutexes (`audio_engine`, `fft_data`). This can lead to permanent Denial of Service (DoS) by either panicking the application or propagating the error without clearing the poison state, effectively locking the audio engine forever after a single thread panic.
+**Learning:** Poisoned mutexes in Rust must be recovered safely if data consistency allows it. Simply bubbling up the error does not clear the poison state and can cause deadlocks or permanent failures.
+**Prevention:** Always use `.unwrap_or_else(|e| e.into_inner())` to safely recover the `MutexGuard` from a poisoned mutex when it is safe to do so, instead of panicking with `.unwrap()` or propagating the error with `?`.
