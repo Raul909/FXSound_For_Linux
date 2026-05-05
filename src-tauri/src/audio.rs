@@ -249,6 +249,11 @@ impl AudioEngine {
             }
         }
 
+        // ⚡ Bolt Optimization: skip expensive O(N) audio sample processing loop entirely when no EQ bands are active (flat state)
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
