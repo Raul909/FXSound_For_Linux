@@ -194,7 +194,7 @@ impl AudioEngine {
 
     /// Return the current FFT magnitude data for the visualizer (32 bins).
     pub fn get_fft_data(&self) -> Vec<f32> {
-        self.fft_data.lock().unwrap().clone()
+        self.fft_data.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     // ── Main processing pipeline ──
@@ -335,10 +335,9 @@ impl AudioEngine {
         self.fft_processor.process(&mut self.complex_buffer);
 
         // Convert to magnitudes, scaled for display (0–100 range)
-        if let Ok(mut fft_data) = self.fft_data.lock() {
-            for (mag, complex) in fft_data.iter_mut().zip(self.complex_buffer[..32].iter()) {
-                *mag = (complex.norm() * 100.0).min(100.0);
-            }
+        let mut fft_data = self.fft_data.lock().unwrap_or_else(|e| e.into_inner());
+        for (mag, complex) in fft_data.iter_mut().zip(self.complex_buffer[..32].iter()) {
+            *mag = (complex.norm() * 100.0).min(100.0);
         }
     }
 }
@@ -462,7 +461,7 @@ impl AudioProcessor {
 
             // Process audio through the engine
             {
-                let mut engine = engine.lock().unwrap();
+                let mut engine = engine.lock().unwrap_or_else(|e| e.into_inner());
                 engine.process_audio(&input_samples, &mut output_samples);
             }
 
@@ -552,16 +551,14 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
                             .map(|n| n.to_string())
                             .unwrap_or_else(|| "Unknown Output".to_string())
                     });
-                if let Ok(mut list) = sinks_clone.lock() {
-                    list.push(name);
-                }
+                let mut list = sinks_clone.lock().unwrap_or_else(|e| e.into_inner());
+                list.push(name);
             }
             pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
                 let (lock, cvar) = &*done_clone;
-                if let Ok(mut finished) = lock.lock() {
-                    *finished = true;
-                    cvar.notify_one();
-                }
+                let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
+                *finished = true;
+                cvar.notify_one();
             }
         }
     });
@@ -570,7 +567,7 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     mainloop.unlock();
     {
         let (lock, cvar) = &*done;
-        let mut finished = lock.lock().map_err(|e| e.to_string())?;
+        let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
         let timeout = Duration::from_secs(3);
         while !*finished {
             let result = cvar.wait_timeout(finished, timeout).map_err(|e| e.to_string())?;
@@ -583,7 +580,7 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 
     mainloop.stop();
 
-    let devices = sinks.lock().map_err(|e| e.to_string())?.clone();
+    let devices = sinks.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
     if devices.is_empty() {
         Ok(vec!["Default Output".to_string()])
