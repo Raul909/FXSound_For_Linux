@@ -1,0 +1,3 @@
+## 2026-05-09 - Keyboard Accessibility for Custom Sliders
+**Learning:** Custom interactive elements like visual sliders (e.g. `div` tracks) require explicit role assignments (`role="slider"`), keyboard event listeners (`onKeyDown` handling arrow keys), and focus management (`tabIndex`) to be accessible. Reusing `:hover` states via `:focus-visible` ensures screen reader and keyboard users get the same visual feedback without adding new CSS classes.
+**Action:** Always add `tabIndex`, ARIA attributes (`aria-valuenow`, `aria-label`), keyboard navigation, and `:focus-visible` pseudo-class bindings to any non-native UI inputs.
