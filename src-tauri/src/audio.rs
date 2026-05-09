@@ -570,10 +570,10 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     mainloop.unlock();
     {
         let (lock, cvar) = &*done;
-        let mut finished = lock.lock().map_err(|e| e.to_string())?;
+        let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
         let timeout = Duration::from_secs(3);
         while !*finished {
-            let result = cvar.wait_timeout(finished, timeout).map_err(|e| e.to_string())?;
+            let result = cvar.wait_timeout(finished, timeout).unwrap_or_else(|e| e.into_inner());
             finished = result.0;
             if result.1.timed_out() {
                 break;
@@ -583,7 +583,7 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 
     mainloop.stop();
 
-    let devices = sinks.lock().map_err(|e| e.to_string())?.clone();
+    let devices = sinks.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
     if devices.is_empty() {
         Ok(vec!["Default Output".to_string()])

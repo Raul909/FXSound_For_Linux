@@ -20,7 +20,7 @@ struct AppState {
 /// Set the gain (in dB) for a single EQ band.
 #[tauri::command]
 fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), String> {
-    let mut engine = state.audio_engine.lock().map_err(|e| e.to_string())?;
+    let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_eq_band(band, gain);
     Ok(())
 }
@@ -28,7 +28,7 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
 /// Set the intensity (0–100) for a named audio effect.
 #[tauri::command]
 fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), String> {
-    let mut engine = state.audio_engine.lock().map_err(|e| e.to_string())?;
+    let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_effect(&effect, value);
     Ok(())
 }
@@ -36,7 +36,7 @@ fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), 
 /// Toggle audio processing on or off.
 #[tauri::command]
 fn set_power(state: State<AppState>, enabled: bool) -> Result<(), String> {
-    let mut engine = state.audio_engine.lock().map_err(|e| e.to_string())?;
+    let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_power(enabled);
     Ok(())
 }
@@ -50,7 +50,7 @@ fn get_audio_devices() -> Result<Vec<String>, String> {
 /// Return the current FFT magnitude data for the visualizer (32 bins).
 #[tauri::command]
 fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
-    let engine = state.audio_engine.lock().map_err(|e| e.to_string())?;
+    let engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     Ok(engine.get_fft_data())
 }
 
