@@ -267,42 +267,51 @@ impl AudioEngine {
 
     /// Apply audio effects to the buffer.
     fn apply_effects(&self, buffer: &mut [f32]) {
-        // Fidelity: subtle high-frequency harmonic enhancement
-        if let Some(&fidelity) = self.effects.get("fidelity") {
-            if fidelity > 0.0 {
-                let amount = fidelity / 100.0;
-                for sample in buffer.iter_mut() {
-                    // Soft saturation — adds harmonics that brighten the sound
-                    let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
-                    *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
-                }
-            }
+        // Pre-calculate constants and determine active effects
+        let fid_amount = self.effects.get("fidelity").copied().unwrap_or(0.0) / 100.0;
+        let dyn_amount = self.effects.get("dynamic").copied().unwrap_or(0.0) / 100.0;
+        let bass_amount = self.effects.get("bass").copied().unwrap_or(0.0) / 100.0;
+
+        let fid_active = fid_amount > 0.0;
+        let dyn_active = dyn_amount > 0.0;
+        let bass_active = bass_amount > 0.0;
+
+        if !fid_active && !dyn_active && !bass_active {
+            return; // Early return if no effects are active
         }
 
-        // Dynamic compression: reduces the gap between loud and quiet
-        if let Some(&dynamic) = self.effects.get("dynamic") {
-            if dynamic > 0.0 {
-                let threshold = 0.7 - (dynamic / 100.0) * 0.3;
-                let ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5; // 2:1 at max
-                for sample in buffer.iter_mut() {
-                    if sample.abs() > threshold {
-                        let sign = sample.signum();
-                        let excess = sample.abs() - threshold;
-                        *sample = sign * (threshold + excess * ratio);
-                    }
-                }
-            }
-        }
+        let fid_factor1 = 1.0 + fid_amount * 0.5;
+        let fid_factor2 = 1.0 - fid_amount * 0.3;
+        let fid_factor3 = fid_amount * 0.3;
 
-        // Bass boost: apply gain to low frequencies
-        // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
-        if let Some(&bass) = self.effects.get("bass") {
-            if bass > 0.0 {
-                let boost = 1.0 + (bass / 100.0) * 0.3;
-                for sample in buffer.iter_mut() {
-                    *sample *= boost;
+        let dyn_threshold = 0.7 - dyn_amount * 0.3;
+        let dyn_ratio = 0.5 + (1.0 - dyn_amount) * 0.5;
+
+        let bass_boost = 1.0 + bass_amount * 0.3;
+
+        // Fused loop: process each sample through all active effects in a single pass
+        for sample in buffer.iter_mut() {
+            let mut s = *sample;
+
+            if fid_active {
+                // Soft saturation — adds harmonics that brighten the sound
+                let saturated = (s.abs() * fid_factor1).tanh() * s.signum();
+                s = s * fid_factor2 + saturated * fid_factor3;
+            }
+
+            if dyn_active {
+                if s.abs() > dyn_threshold {
+                    let sign = s.signum();
+                    let excess = s.abs() - dyn_threshold;
+                    s = sign * (dyn_threshold + excess * dyn_ratio);
                 }
             }
+
+            if bass_active {
+                s *= bass_boost;
+            }
+
+            *sample = s;
         }
     }
 
