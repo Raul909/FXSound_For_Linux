@@ -54,7 +54,20 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
             {/* Horizontal slider track */}
             <div
                 ref={trackRef}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={label}
                 onMouseDown={handleMouseDown}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    if (e.key === "ArrowRight" || e.key === "ArrowUp") { e.preventDefault(); onChange(Math.min(100, value + 1)); }
+                    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") { e.preventDefault(); onChange(Math.max(0, value - 1)); }
+                    else if (e.key === "Home") { e.preventDefault(); onChange(0); }
+                    else if (e.key === "End") { e.preventDefault(); onChange(100); }
+                }}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
