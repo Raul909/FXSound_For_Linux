@@ -251,6 +251,11 @@ impl AudioEngine {
 
         let active_bands_slice = &active_bands[..active_count];
 
+        // Early return if EQ is entirely flat to skip O(N) processing and redundant memory writes
+        if active_count == 0 {
+            return;
+        }
+
         // Process each sample through all active biquad filters
         // Interleaved stereo: even indices = left, odd = right
         for (i, sample) in output.iter_mut().enumerate() {
