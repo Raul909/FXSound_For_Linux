@@ -4,11 +4,11 @@
 //! (fidelity, dynamic compression, bass boost), and real-time FFT-based
 //! spectrum analysis for the visualizer.
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
-use rustfft::{FftPlanner, num_complex::Complex, Fft};
+use rustfft::{num_complex::Complex, Fft, FftPlanner};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -16,8 +16,7 @@ const FFT_SIZE: usize = 512;
 
 /// Center frequencies for the 10 EQ bands (Hz).
 const EQ_FREQUENCIES: [f32; 10] = [
-    32.0, 64.0, 125.0, 250.0, 500.0,
-    1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    32.0, 64.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
 ];
 
 // ──────────────────────────────────────────────
@@ -80,19 +79,22 @@ impl BiquadFilter {
     /// Create a flat (pass-through) filter — all coefficients set for unity gain.
     fn flat() -> Self {
         Self {
-            b0: 1.0, b1: 0.0, b2: 0.0,
-            a1: 0.0, a2: 0.0,
-            x1: [0.0; 2], x2: [0.0; 2],
-            y1: [0.0; 2], y2: [0.0; 2],
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a1: 0.0,
+            a2: 0.0,
+            x1: [0.0; 2],
+            x2: [0.0; 2],
+            y1: [0.0; 2],
+            y2: [0.0; 2],
         }
     }
 
     /// Process a single sample through the filter for the given channel.
     fn process(&mut self, input: f32, channel: usize) -> f32 {
         let ch = channel % 2;
-        let output = self.b0 * input
-            + self.b1 * self.x1[ch]
-            + self.b2 * self.x2[ch]
+        let output = self.b0 * input + self.b1 * self.x1[ch] + self.b2 * self.x2[ch]
             - self.a1 * self.y1[ch]
             - self.a2 * self.y2[ch];
 
@@ -194,7 +196,10 @@ impl AudioEngine {
 
     /// Return the current FFT magnitude data for the visualizer (32 bins).
     pub fn get_fft_data(&self) -> Vec<f32> {
-        self.fft_data.lock().unwrap().clone()
+        self.fft_data
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     // ── Main processing pipeline ──
@@ -328,17 +333,19 @@ impl AudioEngine {
         }
 
         // Re-use complex buffer
-        for (sample, complex) in buffer[..FFT_SIZE].iter().zip(self.complex_buffer.iter_mut()) {
+        for (sample, complex) in buffer[..FFT_SIZE]
+            .iter()
+            .zip(self.complex_buffer.iter_mut())
+        {
             *complex = Complex::new(*sample, 0.0);
         }
 
         self.fft_processor.process(&mut self.complex_buffer);
 
         // Convert to magnitudes, scaled for display (0–100 range)
-        if let Ok(mut fft_data) = self.fft_data.lock() {
-            for (mag, complex) in fft_data.iter_mut().zip(self.complex_buffer[..32].iter()) {
-                *mag = (complex.norm() * 100.0).min(100.0);
-            }
+        let mut fft_data = self.fft_data.lock().unwrap_or_else(|e| e.into_inner());
+        for (mag, complex) in fft_data.iter_mut().zip(self.complex_buffer[..32].iter()) {
+            *mag = (complex.norm() * 100.0).min(100.0);
         }
     }
 }
@@ -376,11 +383,9 @@ impl AudioProcessor {
 
         let engine = Arc::clone(&self.engine);
 
-        std::thread::spawn(move || {
-            match Self::audio_loop(engine, spec) {
-                Ok(_) => log::info!("Audio loop ended normally"),
-                Err(e) => log::error!("Audio loop error: {}", e),
-            }
+        std::thread::spawn(move || match Self::audio_loop(engine, spec) {
+            Ok(_) => log::info!("Audio loop ended normally"),
+            Err(e) => log::error!("Audio loop error: {}", e),
         });
 
         Ok(())
@@ -404,8 +409,12 @@ impl AudioProcessor {
             &spec,
             None,
             None,
-        ).map_err(|e| {
-            log::warn!("Failed to open monitor source: {}. Trying default source...", e);
+        )
+        .map_err(|e| {
+            log::warn!(
+                "Failed to open monitor source: {}. Trying default source...",
+                e
+            );
             e
         });
 
@@ -422,7 +431,8 @@ impl AudioProcessor {
                     &spec,
                     None,
                     None,
-                ).map_err(|e| format!("Failed to create input stream: {}", e))?
+                )
+                .map_err(|e| format!("Failed to create input stream: {}", e))?
             }
         };
 
@@ -436,7 +446,8 @@ impl AudioProcessor {
             &spec,
             None,
             None,
-        ).map_err(|e| format!("Failed to create output stream: {}", e))?;
+        )
+        .map_err(|e| format!("Failed to create output stream: {}", e))?;
 
         log::info!("Audio streams created successfully");
         log::info!("Processing system audio through FXSound...");
@@ -462,7 +473,7 @@ impl AudioProcessor {
 
             // Process audio through the engine
             {
-                let mut engine = engine.lock().unwrap();
+                let mut engine = engine.lock().unwrap_or_else(|e| e.into_inner());
                 engine.process_audio(&input_samples, &mut output_samples);
             }
 
@@ -491,12 +502,14 @@ impl AudioProcessor {
 pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     use pulse::context::{Context, FlagSet as ContextFlagSet};
     use pulse::mainloop::threaded::Mainloop;
-    use std::sync::{Arc, Mutex, Condvar};
+    use std::sync::{Arc, Condvar, Mutex};
     use std::time::Duration;
 
     // Create a threaded mainloop for the introspection query
     let mut mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
-    mainloop.start().map_err(|e| format!("Failed to start mainloop: {}", e))?;
+    mainloop
+        .start()
+        .map_err(|e| format!("Failed to start mainloop: {}", e))?;
 
     let mut context = Context::new(&mainloop, "FXSound Device Query")
         .ok_or("Failed to create PulseAudio context")?;
@@ -538,31 +551,28 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     let done_clone = Arc::clone(&done);
 
     let introspector = context.introspect();
-    let _op = introspector.get_sink_info_list(move |result| {
-        match result {
-            pulse::callbacks::ListResult::Item(sink_info) => {
-                let name = sink_info
-                    .description
-                    .as_ref()
-                    .map(|d| d.to_string())
-                    .unwrap_or_else(|| {
-                        sink_info
-                            .name
-                            .as_ref()
-                            .map(|n| n.to_string())
-                            .unwrap_or_else(|| "Unknown Output".to_string())
-                    });
-                if let Ok(mut list) = sinks_clone.lock() {
-                    list.push(name);
-                }
+    let _op = introspector.get_sink_info_list(move |result| match result {
+        pulse::callbacks::ListResult::Item(sink_info) => {
+            let name = sink_info
+                .description
+                .as_ref()
+                .map(|d| d.to_string())
+                .unwrap_or_else(|| {
+                    sink_info
+                        .name
+                        .as_ref()
+                        .map(|n| n.to_string())
+                        .unwrap_or_else(|| "Unknown Output".to_string())
+                });
+            if let Ok(mut list) = sinks_clone.lock() {
+                list.push(name);
             }
-            pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
-                let (lock, cvar) = &*done_clone;
-                if let Ok(mut finished) = lock.lock() {
-                    *finished = true;
-                    cvar.notify_one();
-                }
-            }
+        }
+        pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
+            let (lock, cvar) = &*done_clone;
+            let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
+            *finished = true;
+            cvar.notify_one();
         }
     });
 
@@ -570,10 +580,12 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
     mainloop.unlock();
     {
         let (lock, cvar) = &*done;
-        let mut finished = lock.lock().map_err(|e| e.to_string())?;
+        let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
         let timeout = Duration::from_secs(3);
         while !*finished {
-            let result = cvar.wait_timeout(finished, timeout).map_err(|e| e.to_string())?;
+            let result = cvar
+                .wait_timeout(finished, timeout)
+                .map_err(|e| e.to_string())?;
             finished = result.0;
             if result.1.timed_out() {
                 break;
@@ -583,7 +595,7 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 
     mainloop.stop();
 
-    let devices = sinks.lock().map_err(|e| e.to_string())?.clone();
+    let devices = sinks.lock().unwrap_or_else(|e| e.into_inner()).clone();
 
     if devices.is_empty() {
         Ok(vec!["Default Output".to_string()])
