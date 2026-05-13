@@ -256,6 +256,10 @@ impl AudioEngine {
 
         let active_bands_slice = &active_bands[..active_count];
 
+        if active_count == 0 {
+            return;
+        }
+
         // Process each sample through all active biquad filters
         // Interleaved stereo: even indices = left, odd = right
         for (i, sample) in output.iter_mut().enumerate() {
