@@ -22,6 +22,23 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
     }
 
+    // Handle keyboard navigation
+    function handleKeyDown(event) {
+        if (disabled) return;
+        let newValue = value;
+        if (event.key === "ArrowUp" || event.key === "ArrowRight") newValue += 1;
+        else if (event.key === "ArrowDown" || event.key === "ArrowLeft") newValue -= 1;
+        else if (event.key === "PageUp") newValue += 3;
+        else if (event.key === "PageDown") newValue -= 3;
+        else if (event.key === "Home") newValue = -12;
+        else if (event.key === "End") newValue = 12;
+        else return;
+
+        event.preventDefault();
+        const clamped = Math.max(-12, Math.min(12, newValue));
+        if (clamped !== value) onChange(clamped);
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
@@ -60,8 +77,16 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={`${freq} EQ Band`}
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-valuetext={`${value > 0 ? '+' : ''}${value} dB`}
                 className="eq-band__track"
-                style={{ cursor: disabled ? "default" : "pointer" }}
+                style={{ cursor: disabled ? "default" : "pointer", outline: "none" }}
             >
                 {/* Center line marking 0 dB */}
                 <div className="eq-band__center-line" />
