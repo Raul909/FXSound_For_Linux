@@ -181,6 +181,13 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        // Restrict to known effects to prevent memory exhaustion (DoS) via arbitrary keys
+        let valid_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+        if !valid_effects.contains(&effect) {
+            log::warn!("Rejected unknown effect '{}' to prevent memory exhaustion", effect);
+            return;
+        }
+
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
@@ -607,6 +614,17 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_set_effect_unbounded_growth_mitigated() {
+        let mut engine = AudioEngine::new();
+        engine.set_effect("fidelity", 50.0);
+        assert_eq!(engine.effects.len(), 1);
+
+        // Invalid effects should be rejected
+        engine.set_effect("malicious_effect", 99.0);
+        assert_eq!(engine.effects.len(), 1);
+    }
 
     #[test]
     fn test_filter_flat() {
