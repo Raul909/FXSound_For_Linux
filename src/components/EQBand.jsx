@@ -22,6 +22,18 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         return Math.round(Math.max(-12, Math.min(12, ratio * 24 - 12)));
     }
 
+    function handleKeyDown(event) {
+        if (disabled) return;
+        let step = 1;
+        if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+            event.preventDefault();
+            onChange(Math.min(12, value + step));
+        } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+            event.preventDefault();
+            onChange(Math.max(-12, value - step));
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
@@ -59,7 +71,14 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
             {/* Vertical slider track */}
             <div
                 ref={trackRef}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={`${freq} Hz EQ Band`}
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >

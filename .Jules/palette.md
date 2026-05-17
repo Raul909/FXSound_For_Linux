@@ -1,0 +1,3 @@
+## 2024-05-24 - Accessibility improvements for custom sliders
+**Learning:** Custom div-based sliders (like EQBand and EffectSlider) lack native accessibility features, making them unusable for keyboard-only or screen reader users.
+**Action:** Always implement `role="slider"`, `tabIndex`, appropriate ARIA state attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and `onKeyDown` handlers for directional arrow key manipulation when building custom slider components. Also, ensure a focus-visible state is defined, or append `:focus-visible` pseudo-class selectors to existing `:hover` CSS rules if constraints forbid entirely new custom CSS classes.
