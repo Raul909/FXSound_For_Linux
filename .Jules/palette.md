@@ -1,0 +1,3 @@
+## 2024-03-24 - Accessibility for Custom Div Sliders
+**Learning:** Custom UI sliders built with `div` elements lack native keyboard interactions and screen reader context compared to standard `<input type="range">`.
+**Action:** When implementing custom components like `EQBand` or `EffectSlider` to match design constraints, always manually add `role="slider"`, `tabIndex`, ARIA attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`/`aria-labelledby`), keyboard event handlers (`onKeyDown`) for directional arrow manipulation, and `:focus-visible` styles grouped with existing hover styles.

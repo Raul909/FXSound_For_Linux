@@ -369,8 +369,10 @@ select option {
   transition: border-color 0.2s;
 }
 
-.eq-band__track:hover {
+.eq-band__track:hover,
+.eq-band__track:focus-visible {
   border-color: #2a2a3a;
+  outline: none;
 }
 
 .eq-band__center-line {
@@ -450,8 +452,10 @@ select option {
   transition: border-color 0.2s;
 }
 
-.effect-slider:hover .effect-slider__track {
+.effect-slider:hover .effect-slider__track,
+.effect-slider__track:focus-visible {
   border-color: #2a2a3a;
+  outline: none;
 }
 
 .effect-slider__fill {
