@@ -254,6 +254,12 @@ impl AudioEngine {
             }
         }
 
+        // ⚡ Bolt: Early return if no EQ bands are active.
+        // Skips the O(N) sample processing loop entirely when EQ is flat.
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
