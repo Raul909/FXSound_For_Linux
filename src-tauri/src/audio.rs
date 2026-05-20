@@ -254,6 +254,11 @@ impl AudioEngine {
             }
         }
 
+        // ⚡ Bolt: Early return prevents O(N) redundant iteration when EQ is flat
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
