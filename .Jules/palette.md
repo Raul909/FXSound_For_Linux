@@ -1,0 +1,3 @@
+## 2026-05-21 - Custom Div Sliders Need Accessibility Attributes
+**Learning:** Custom div-based sliders require manual implementation of accessibility features to function correctly for keyboard-only and screen reader users.
+**Action:** Implemented `role="slider"`, `tabIndex`, appropriate ARIA state attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and `onKeyDown` handlers for directional arrow key manipulation. To ensure visible focus indicators without adding entirely new custom CSS classes, appended `:focus-visible` and `:focus-within` pseudo-class selectors to existing `:hover` CSS rules.
