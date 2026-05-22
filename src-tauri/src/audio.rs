@@ -254,6 +254,11 @@ impl AudioEngine {
             }
         }
 
+        // Early return if no EQ bands are active to skip O(N) sample iteration overhead
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
