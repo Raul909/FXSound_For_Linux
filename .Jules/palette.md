@@ -1,0 +1,3 @@
+## 2026-05-23 - Keyboard Accessibility for Custom Sliders
+**Learning:** Custom div-based UI components (like EQ bands and effect sliders) lose native keyboard navigation and screen reader support. Adding `role="slider"`, `tabIndex`, ARIA attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and keydown handlers is essential for a11y.
+**Action:** Always implement explicit keyboard handlers and ARIA attributes when building interactive custom components that act like native inputs, and map `:focus-visible` styles to match `:hover` states while setting `outline: none;` to avoid visual clashes.

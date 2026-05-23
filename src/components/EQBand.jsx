@@ -46,6 +46,12 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    function handleKeyDown(e) {
+        if (disabled) return;
+        if (["ArrowUp", "ArrowRight"].includes(e.key)) { onChange(Math.min(12, value + 1)); e.preventDefault(); }
+        if (["ArrowDown", "ArrowLeft"].includes(e.key)) { onChange(Math.max(-12, value - 1)); e.preventDefault(); }
+    }
+
     // Calculate thumb position as a percentage (0% = -12dB bottom, 100% = +12dB top)
     const thumbPercent = ((value + 12) / 24) * 100;
 
@@ -60,6 +66,13 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin={-12}
+                aria-valuemax={12}
+                aria-label={`${freq} Hz Band`}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
             >
