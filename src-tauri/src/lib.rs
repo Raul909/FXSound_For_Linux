@@ -29,8 +29,7 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
 #[tauri::command]
 fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), String> {
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
-    engine.set_effect(&effect, value);
-    Ok(())
+    engine.set_effect(&effect, value)
 }
 
 /// Toggle audio processing on or off.

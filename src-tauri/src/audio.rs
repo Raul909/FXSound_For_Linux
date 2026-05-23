@@ -180,10 +180,17 @@ impl AudioEngine {
     }
 
     /// Set an effect intensity value (0–100).
-    pub fn set_effect(&mut self, effect: &str, value: f32) {
+    pub fn set_effect(&mut self, effect: &str, value: f32) -> Result<(), String> {
+        // Security: allow-list untrusted input to prevent memory exhaustion (DoS)
+        let allowed = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+        if !allowed.contains(&effect) {
+            return Err(format!("Invalid effect name: {}", effect));
+        }
+
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
+        Ok(())
     }
 
     /// Toggle audio processing on or off.
