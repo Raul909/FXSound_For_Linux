@@ -254,6 +254,13 @@ impl AudioEngine {
             }
         }
 
+        // ⚡ Bolt Optimization: Early return when EQ is flat (all bands 0 dB)
+        // Prevents redundant O(N) outer loop iteration over the entire audio buffer
+        // when there are no active biquad filters to process.
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
