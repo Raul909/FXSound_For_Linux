@@ -181,6 +181,10 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        if !["fidelity", "dynamic", "bass"].contains(&effect) {
+            log::warn!("Rejected unknown effect parameter: {}", effect);
+            return;
+        }
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
@@ -625,5 +629,18 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_set_effect_security() {
+        let mut engine = AudioEngine::new();
+
+        // Allowed effects should be inserted
+        engine.set_effect("fidelity", 50.0);
+        assert!(engine.effects.contains_key("fidelity"));
+
+        // Unallowed effects should be rejected to prevent memory exhaustion
+        engine.set_effect("malicious_payload", 100.0);
+        assert!(!engine.effects.contains_key("malicious_payload"));
     }
 }
