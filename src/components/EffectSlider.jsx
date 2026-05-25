@@ -46,17 +46,35 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    function handleKeyDown(event) {
+        if (disabled) return;
+        let newValue = value;
+        if (event.key === "ArrowRight" || event.key === "ArrowUp") newValue = Math.min(100, value + 5);
+        else if (event.key === "ArrowLeft" || event.key === "ArrowDown") newValue = Math.max(0, value - 5);
+        else return;
+
+        event.preventDefault();
+        onChange(newValue);
+    }
+
     return (
         <div className="effect-slider">
             {/* Effect name */}
-            <span className="effect-slider__label">{label}</span>
+            <span className="effect-slider__label" id={`label-${label.replace(/\s+/g, '-')}`}>{label}</span>
 
             {/* Horizontal slider track */}
             <div
                 ref={trackRef}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={value}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="effect-slider__track"
-                style={{ cursor: disabled ? "default" : "pointer" }}
+                style={{ cursor: disabled ? "default" : "pointer", outline: "none" }}
             >
                 {/* Filled portion of the track */}
                 <div
