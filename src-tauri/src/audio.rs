@@ -181,9 +181,17 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
-        let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
-        log::info!("Effect '{}' set to {:.1}", effect, clamped);
+        // Validate effect name against known allow-list to prevent memory exhaustion DoS
+        match effect {
+            "fidelity" | "ambiance" | "dynamic" | "surround" | "bass" => {
+                let clamped = value.clamp(0.0, 100.0);
+                self.effects.insert(effect.to_string(), clamped);
+                log::info!("Effect '{}' set to {:.1}", effect, clamped);
+            }
+            _ => {
+                log::warn!("Rejected invalid effect parameter: '{}'", effect);
+            }
+        }
     }
 
     /// Toggle audio processing on or off.
@@ -625,5 +633,18 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_set_effect_validation() {
+        let mut engine = AudioEngine::new();
+
+        // Valid effect
+        engine.set_effect("bass", 50.0);
+        assert_eq!(engine.effects.get("bass"), Some(&50.0));
+
+        // Invalid effect should be rejected
+        engine.set_effect("malicious_memory_bomb", 100.0);
+        assert!(engine.effects.get("malicious_memory_bomb").is_none());
     }
 }
