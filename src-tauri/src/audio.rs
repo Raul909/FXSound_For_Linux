@@ -272,42 +272,50 @@ impl AudioEngine {
 
     /// Apply audio effects to the buffer.
     fn apply_effects(&self, buffer: &mut [f32]) {
-        // Fidelity: subtle high-frequency harmonic enhancement
-        if let Some(&fidelity) = self.effects.get("fidelity") {
-            if fidelity > 0.0 {
-                let amount = fidelity / 100.0;
-                for sample in buffer.iter_mut() {
-                    // Soft saturation — adds harmonics that brighten the sound
-                    let saturated = (sample.abs() * (1.0 + amount * 0.5)).tanh() * sample.signum();
-                    *sample = *sample * (1.0 - amount * 0.3) + saturated * (amount * 0.3);
-                }
-            }
+        let fidelity = self.effects.get("fidelity").copied().unwrap_or(0.0);
+        let dynamic = self.effects.get("dynamic").copied().unwrap_or(0.0);
+        let bass = self.effects.get("bass").copied().unwrap_or(0.0);
+
+        let has_fidelity = fidelity > 0.0;
+        let has_dynamic = dynamic > 0.0;
+        let has_bass = bass > 0.0;
+
+        // Early return if no effects are active
+        if !has_fidelity && !has_dynamic && !has_bass {
+            return;
         }
 
-        // Dynamic compression: reduces the gap between loud and quiet
-        if let Some(&dynamic) = self.effects.get("dynamic") {
-            if dynamic > 0.0 {
-                let threshold = 0.7 - (dynamic / 100.0) * 0.3;
-                let ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5; // 2:1 at max
-                for sample in buffer.iter_mut() {
-                    if sample.abs() > threshold {
-                        let sign = sample.signum();
-                        let excess = sample.abs() - threshold;
-                        *sample = sign * (threshold + excess * ratio);
-                    }
-                }
-            }
-        }
+        // Pre-calculate constants to avoid redundant math
+        let fidelity_amount = fidelity / 100.0;
+        let fidelity_sat_mult = 1.0 + fidelity_amount * 0.5;
+        let fidelity_mix_orig = 1.0 - fidelity_amount * 0.3;
+        let fidelity_mix_sat = fidelity_amount * 0.3;
 
-        // Bass boost: apply gain to low frequencies
-        // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
-        if let Some(&bass) = self.effects.get("bass") {
-            if bass > 0.0 {
-                let boost = 1.0 + (bass / 100.0) * 0.3;
-                for sample in buffer.iter_mut() {
-                    *sample *= boost;
-                }
+        let dynamic_threshold = 0.7 - (dynamic / 100.0) * 0.3;
+        let dynamic_ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5;
+
+        let bass_boost = 1.0 + (bass / 100.0) * 0.3;
+
+        // Loop fusion: single pass over the buffer
+        for sample in buffer.iter_mut() {
+            let mut s = *sample;
+
+            if has_fidelity {
+                let saturated = (s.abs() * fidelity_sat_mult).tanh() * s.signum();
+                s = s * fidelity_mix_orig + saturated * fidelity_mix_sat;
             }
+
+            if has_dynamic && s.abs() > dynamic_threshold {
+                let sign = s.signum();
+                let excess = s.abs() - dynamic_threshold;
+                s = sign * (dynamic_threshold + excess * dynamic_ratio);
+            }
+
+            if has_bass {
+                s *= bass_boost;
+            }
+
+            *sample = s;
         }
     }
 
