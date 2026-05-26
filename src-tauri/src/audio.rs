@@ -181,9 +181,16 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
-        let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
-        log::info!("Effect '{}' set to {:.1}", effect, clamped);
+        match effect {
+            "fidelity" | "dynamic" | "bass" => {
+                let clamped = value.clamp(0.0, 100.0);
+                self.effects.insert(effect.to_string(), clamped);
+                log::info!("Effect '{}' set to {:.1}", effect, clamped);
+            }
+            _ => {
+                log::warn!("Ignored invalid or unimplemented effect: {}", effect);
+            }
+        }
     }
 
     /// Toggle audio processing on or off.
@@ -607,6 +614,16 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_set_effect_allowlist() {
+        let mut engine = AudioEngine::new();
+        engine.set_effect("fidelity", 50.0);
+        engine.set_effect("malicious_input", 99.0);
+
+        assert_eq!(engine.effects.get("fidelity"), Some(&50.0));
+        assert_eq!(engine.effects.get("malicious_input"), None);
+    }
 
     #[test]
     fn test_filter_flat() {
