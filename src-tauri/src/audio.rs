@@ -254,6 +254,12 @@ impl AudioEngine {
             }
         }
 
+        // Performance optimization: skip expensive O(N) processing loop
+        // entirely when all EQ bands are flat.
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
