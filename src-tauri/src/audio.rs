@@ -181,6 +181,11 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        // Prevent IPC memory exhaustion by allow-listing effect keys
+        if !["fidelity", "dynamic", "bass"].contains(&effect) {
+            log::warn!("Rejected invalid effect key: {}", effect);
+            return;
+        }
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
@@ -625,5 +630,17 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_set_effect_allowlist() {
+        let mut engine = AudioEngine::new();
+        engine.set_effect("fidelity", 50.0);
+        assert_eq!(engine.effects.len(), 1);
+
+        // Malicious input should be rejected
+        engine.set_effect("malicious_key_1", 100.0);
+        engine.set_effect("malicious_key_2", 100.0);
+        assert_eq!(engine.effects.len(), 1);
     }
 }
