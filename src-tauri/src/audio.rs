@@ -254,6 +254,12 @@ impl AudioEngine {
             }
         }
 
+        // ⚡ Bolt: Early return to skip O(N) buffer iteration if no EQ bands are active.
+        // Prevents redundant read/write cycles of the output buffer.
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
