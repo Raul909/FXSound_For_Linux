@@ -1,0 +1,3 @@
+## 2026-05-31 - Keyboard Accessibility for Custom Div Sliders
+**Learning:** Custom div-based sliders require explicit accessibility attributes (`role="slider"`, `tabIndex`, `aria-valuenow/min/max`) and manual keyboard navigation handlers (`onKeyDown`) to function correctly for keyboard-only and screen reader users. Ensuring visible focus indicators (`:focus-visible`) is essential for a complete keyboard UX without breaking design constraints.
+**Action:** Always implement comprehensive ARIA properties and keyboard event listeners when building custom interactive UI controls, and attach `:focus-visible` to elements alongside their `:hover` states.
