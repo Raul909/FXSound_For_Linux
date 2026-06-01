@@ -181,6 +181,10 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        if !["fidelity", "dynamic", "bass"].contains(&effect) {
+            log::warn!("Rejected invalid effect name: {}", effect);
+            return;
+        }
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
@@ -625,5 +629,24 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_set_effect_allowlist_dos() {
+        let mut engine = AudioEngine::new();
+        engine.set_effect("fidelity", 50.0);
+        engine.set_effect("dynamic", 50.0);
+        engine.set_effect("bass", 50.0);
+
+        // Invalid effects should not be inserted
+        engine.set_effect("ambiance", 50.0);
+        engine.set_effect("surround", 50.0);
+        engine.set_effect("malicious_key_1", 50.0);
+        engine.set_effect("malicious_key_2", 50.0);
+
+        assert_eq!(engine.effects.len(), 3);
+        assert!(engine.effects.contains_key("fidelity"));
+        assert!(engine.effects.contains_key("dynamic"));
+        assert!(engine.effects.contains_key("bass"));
     }
 }
