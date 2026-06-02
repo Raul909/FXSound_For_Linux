@@ -1,0 +1,3 @@
+## 2026-06-02 - Audio DSP Early Returns Optimization
+**Learning:** In audio DSP processing loops like `apply_eq`, iterating over the entire sample buffer (`O(N)`) simply to do nothing (when no effect bands are active) consumes measurable CPU time, especially with high sample rates. The compiler doesn't always optimize this empty loop perfectly due to potential side effects in `enumerate` or memory access patterns.
+**Action:** Implemented an early return (`if active_count == 0`) before the high-frequency sample iteration loop to skip memory traversal entirely when the EQ state is flat, saving substantial CPU cycles.
