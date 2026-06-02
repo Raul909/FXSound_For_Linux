@@ -1,0 +1,3 @@
+## 2026-06-02 - Custom Div Slider Accessibility
+**Learning:** Custom div-based slider components lack built-in semantic meaning, keyboard interaction, and focus visibility. Without explicit ARIA roles, tabindex, and keydown handlers, keyboard-only and screen reader users cannot perceive or manipulate these controls.
+**Action:** Always implement `role="slider"`, `tabIndex`, ARIA state attributes (`aria-valuenow`, etc.), and `onKeyDown` directional key handlers for any custom interactive components mimicking native inputs. Ensure focus visibility by extending `:hover` styles with `:focus-visible` and `outline: none`.
