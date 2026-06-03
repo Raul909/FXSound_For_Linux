@@ -28,6 +28,11 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
 /// Set the intensity (0–100) for a named audio effect.
 #[tauri::command]
 fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), String> {
+    let valid_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+    if !valid_effects.contains(&effect.as_str()) {
+        return Err(format!("Invalid effect name: {}", effect));
+    }
+
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_effect(&effect, value);
     Ok(())
