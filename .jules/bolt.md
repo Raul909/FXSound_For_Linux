@@ -1,0 +1,3 @@
+## 2026-06-03 - Loop Fusion in DSP Processing
+**Learning:** When chaining DSP effects, iterating over the entire audio buffer multiple times (once per effect) causes redundant memory reads/writes and cache thrashing. It's much faster to pre-calculate effect constants and use "loop fusion" to pass each sample through all active effects in a single iteration. Additionally, an early return when all effects are inactive prevents unnecessary buffer traversal entirely.
+**Action:** Always pre-calculate loop invariants and fuse sequential array operations into a single pass to optimize DSP or high-frequency iteration loops.
