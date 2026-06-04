@@ -1,0 +1,3 @@
+## 2026-06-04 - Keyboard Accessibility for Custom Sliders
+**Learning:** Custom div-based slider components completely break keyboard navigation and screen reader support out-of-the-box in React. Adding `role="slider"` and `tabIndex` is not enough; we must also explicitly handle `onKeyDown` for arrow keys (with `preventDefault` to stop page scrolling) and provide visible focus indicators using `:focus-visible` mapped to existing `:hover` styles to maintain the design system while adding a11y.
+**Action:** Always implement full ARIA attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`), arrow key event handlers, and explicit `outline: none` on `:focus-visible` when creating non-native `<input type="range">` equivalents.
