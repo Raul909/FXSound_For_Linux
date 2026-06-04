@@ -410,12 +410,11 @@ impl AudioProcessor {
             None,
             None,
         )
-        .map_err(|e| {
+        .inspect_err(|&e| {
             log::warn!(
                 "Failed to open monitor source: {}. Trying default source...",
                 e
             );
-            e
         });
 
         let input = match input {

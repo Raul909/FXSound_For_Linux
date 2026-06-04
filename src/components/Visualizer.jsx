@@ -38,6 +38,19 @@ export default function Visualizer({ powered }) {
         analyserRef.current = null;
     }, []);
 
+    // Precalculate static bar colors (hue and saturation)
+    const barColors = useRef(null);
+    if (barColors.current == null) {
+        const center = BAR_COUNT / 2;
+        barColors.current = Array.from({ length: BAR_COUNT }, (_, i) => {
+            const distFromCenter = Math.abs(i - center) / center;
+            return {
+                hue: 340 + distFromCenter * 15,
+                sat: 75 + (1 - distFromCenter) * 25
+            };
+        });
+    }
+
     // Draw bars onto the canvas — no React state, no DOM updates
     const drawFrame = useCallback((now, lastTimeRef) => {
         const canvas = canvasRef.current;
@@ -64,7 +77,6 @@ export default function Visualizer({ powered }) {
 
         const gap = 2;
         const barW = (w - gap * (BAR_COUNT - 1)) / BAR_COUNT;
-        const center = BAR_COUNT / 2;
 
         for (let i = 0; i < BAR_COUNT; i++) {
             const barH = isPowered ? Math.max(2, display[i] * 0.85) : 2;
@@ -80,9 +92,7 @@ export default function Visualizer({ powered }) {
             }
 
             const intensity = Math.min(barH / 55, 1);
-            const distFromCenter = Math.abs(i - center) / center;
-            const hue = 340 + distFromCenter * 15;
-            const sat = 75 + (1 - distFromCenter) * 25;
+            const { hue, sat } = barColors.current[i];
             const lit = 45 + intensity * 20;
 
             const grad = ctx.createLinearGradient(0, y + barH, 0, y);
