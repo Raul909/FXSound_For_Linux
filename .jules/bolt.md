@@ -1,0 +1,3 @@
+## 2026-06-05 - Audio DSP Loop Fusion
+**Learning:** In hot audio processing loops (like `apply_effects` called rapidly for buffer fragments), running sequential loops over the entire array for each individual effect forces redundant memory reads/writes and repeated HashMap lookups, causing CPU overhead and cache churn.
+**Action:** Fused the three effect loops (Fidelity, Dynamic Compression, and Bass Boost) into a single iteration pass. Extracted constant map lookups and math calculations outside the `for sample in buffer.iter_mut()` loop to pre-calculate them exactly once per buffer process call.
