@@ -215,8 +215,11 @@ impl AudioEngine {
         }
 
         // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        if rms.sqrt() < 0.001 {
+        // OPTIMIZATION: Mean Absolute Value (MAV) approximation for silence detection.
+        // MAV (< 0.0009) is faster than RMS calculation as it avoids per-sample multiplications
+        // and a global square root calculation.
+        let mav: f32 = input.iter().map(|&x| x.abs()).sum::<f32>() / input.len() as f32;
+        if mav < 0.0009 {
             output.fill(0.0);
             return;
         }
