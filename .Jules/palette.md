@@ -1,0 +1,3 @@
+## 2026-06-08 - Add keyboard accessibility to custom EQ and Effect sliders
+**Learning:** Custom div-based sliders require manual implementation of accessibility features to function correctly for keyboard-only and screen reader users. It's crucial to implement `role="slider"`, `tabIndex`, appropriate ARIA state attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and `onKeyDown` handlers for directional arrow key manipulation (including explicitly calling `event.preventDefault()` to stop the page from scrolling while adjusting).
+**Action:** When creating custom interactive UI elements, always ensure they are fully accessible by providing appropriate ARIA roles, states, and keyboard event handlers.
