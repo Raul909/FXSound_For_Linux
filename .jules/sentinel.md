@@ -1,4 +1,4 @@
-## 2026-05-12 - Fix Mutex Poisoning Denial of Service (DoS)
-**Vulnerability:** Mutex locks in Tauri command handlers and audio engine use `.unwrap()` or `.map_err(|e| e.to_string())?`. If a thread panics while holding the lock, the mutex becomes permanently "poisoned", causing all subsequent lock attempts to fail, resulting in an unrecoverable Denial of Service (DoS) requiring a restart.
-**Learning:** Rust's Mutex poisoning is a safety feature, but failing to clear it creates a permanent DoS state in long-running services. Panics in thread boundaries shouldn't permanently take down shared state.
-**Prevention:** Use `.unwrap_or_else(|e| e.into_inner())` on `Mutex::lock()` results to safely recover the lock guard and continue functioning even if the previous thread panicked.
+## 2026-06-08 - Prevent IPC Memory Exhaustion (DoS)
+**Vulnerability:** The Tauri `set_effect` command accepted any string for the `effect` parameter and inserted it directly into a Rust `HashMap`. A malicious frontend or compromised renderer could send thousands of unique effect names, causing unbounded memory allocation and leading to a Denial of Service (DoS) via memory exhaustion.
+**Learning:** In Tauri applications, Inter-Process Communication (IPC) command parameters must be treated as untrusted user input. Dynamically sized collections like `HashMap` in the backend are vulnerable to exhaustion if keys are not validated.
+**Prevention:** Always implement an explicit allow-list for string parameters at the IPC boundary before using them as keys in dynamically sized collections.
