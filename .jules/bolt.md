@@ -1,0 +1,3 @@
+## 2026-06-09 - Replace RMS with MAV for Silence Detection
+**Learning:** In high-frequency DSP loops like `process_audio`, performing per-sample multiplications and calculating global square roots for Root Mean Square (RMS) silence detection introduces unnecessary computational overhead. Mean Absolute Value (MAV) provides a sufficiently accurate approximation for silence detection (`mav < 0.0009` corresponding to `rms < 0.001`) while avoiding expensive floating-point operations.
+**Action:** Use MAV (`abs()`) instead of RMS (`* x`, `sqrt()`) in hot paths where approximate amplitude detection is sufficient, saving CPU cycles and reducing power consumption in the audio processing thread.
