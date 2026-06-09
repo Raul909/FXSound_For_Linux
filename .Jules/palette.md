@@ -1,0 +1,3 @@
+## 2026-06-09 - Accessible Custom Sliders
+**Learning:** Custom div-based sliders lack native focus management and keyboard handling. To make them fully accessible, they require `role="slider"`, `tabIndex`, appropriate ARIA state attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and an `onKeyDown` handler for directional key manipulation.
+**Action:** Always add ARIA roles, tabindex, and keyboard event handlers with `event.preventDefault()` to custom interactive elements to ensure they behave like native controls for keyboard and screen reader users. Also remember to explicitly set `outline: none;` on `:focus-visible` when applying custom focus indicators to avoid browser default rings.
