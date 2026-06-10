@@ -1,0 +1,3 @@
+## 2026-06-10 - Loop Fusion in DSP Effects Chaining
+**Learning:** Chaining DSP effects sequentially using independent array iterations causes unnecessary memory overhead and cache misses, as each sample is read and written multiple times. Re-calculating static threshold and ratio values per sample also wastes CPU cycles inside high-frequency audio processing loops.
+**Action:** Use loop fusion to combine multiple effect passes into a single buffer iteration, processing each sample entirely through all active effects in one go. Pre-calculate constant effect parameters outside the loop to minimize redundant math operations.
