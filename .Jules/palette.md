@@ -1,0 +1,3 @@
+## 2026-06-10 - Custom Slider Accessibility
+**Learning:** Custom div-based sliders require manual implementation of accessibility features to function correctly for keyboard-only and screen reader users: implement `role="slider"`, `tabIndex`, appropriate ARIA state attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and `onKeyDown` handlers for directional arrow key manipulation (including explicitly calling `event.preventDefault()` to stop the page from scrolling while adjusting).
+**Action:** Always ensure custom interactive elements have equivalent keyboard support and ARIA semantics to native elements, and use `:focus-visible` mapped to existing hover styles to provide visible focus indicators without adding clashing outlines.
