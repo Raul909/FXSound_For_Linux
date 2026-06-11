@@ -254,6 +254,11 @@ impl AudioEngine {
             }
         }
 
+        if active_count == 0 {
+            // ⚡ Bolt: skip expensive O(N) loop and redundant memory writes when flat
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
