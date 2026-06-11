@@ -1,0 +1,3 @@
+## 2026-06-11 - Add keyboard a11y to custom div sliders
+**Learning:** Custom div-based sliders are entirely invisible to keyboard and screen reader users without proper ARIA properties (`role`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`), a `tabIndex`, and a keyboard event listener that handles arrow keys to adjust values. When mapping existing hover styles to `:focus-visible`, an explicit `outline: none;` is necessary to prevent default browser focus rings from clashing with custom focus indicators.
+**Action:** When implementing or updating custom interactive components, proactively implement these ARIA and keyboard handling attributes.
