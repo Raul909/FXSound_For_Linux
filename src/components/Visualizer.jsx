@@ -22,9 +22,44 @@ export default function Visualizer({ powered }) {
     const analyserRef = useRef(null);
     const streamRef = useRef(null);
     const poweredRef = useRef(powered);
+    const stylesCacheRef = useRef(null);
 
     // Keep poweredRef in sync without re-running the main effect
     useEffect(() => { poweredRef.current = powered; }, [powered]);
+
+
+    // Pre-calculate gradients and colors to avoid GC overhead in draw loop
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        const center = BAR_COUNT / 2;
+        const cache = new Array(BAR_COUNT);
+
+        for (let i = 0; i < BAR_COUNT; i++) {
+            cache[i] = new Array(CANVAS_HEIGHT + 1);
+            const distFromCenter = Math.abs(i - center) / center;
+            const hue = 340 + distFromCenter * 15;
+            const sat = 75 + (1 - distFromCenter) * 25;
+
+            for (let barH = 0; barH <= CANVAS_HEIGHT; barH++) {
+                const intensity = Math.min(barH / 55, 1);
+                const lit = 45 + intensity * 20;
+                const y = CANVAS_HEIGHT - barH;
+
+                const grad = ctx.createLinearGradient(0, y + barH, 0, y);
+                grad.addColorStop(0, `hsl(${hue},${sat}%,${lit - 15}%)`);
+                grad.addColorStop(1, `hsl(${hue},${sat}%,${lit}%)`);
+
+                cache[i][barH] = {
+                    grad,
+                    alpha: 0.55 + intensity * 0.45,
+                    reflectionColor: `hsl(${hue},${sat}%,${lit}%)`
+                };
+            }
+        }
+        stylesCacheRef.current = cache;
+    }, []);
 
     const cleanupWebAudio = useCallback(() => {
         if (streamRef.current) {
@@ -79,27 +114,46 @@ export default function Visualizer({ powered }) {
                 continue;
             }
 
-            const intensity = Math.min(barH / 55, 1);
-            const distFromCenter = Math.abs(i - center) / center;
-            const hue = 340 + distFromCenter * 15;
-            const sat = 75 + (1 - distFromCenter) * 25;
-            const lit = 45 + intensity * 20;
+            const barHInt = Math.min(Math.max(Math.round(barH), 0), CANVAS_HEIGHT);
+            const cached = stylesCacheRef.current?.[i]?.[barHInt];
 
-            const grad = ctx.createLinearGradient(0, y + barH, 0, y);
-            grad.addColorStop(0, `hsl(${hue},${sat}%,${lit - 15}%)`);
-            grad.addColorStop(1, `hsl(${hue},${sat}%,${lit}%)`);
-            ctx.globalAlpha = 0.55 + intensity * 0.45;
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, [2, 2, 0, 0]);
-            ctx.fill();
+            if (cached) {
+                ctx.globalAlpha = cached.alpha;
+                ctx.fillStyle = cached.grad;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barW, barH, [2, 2, 0, 0]);
+                ctx.fill();
 
-            // Reflection
-            if (barH > 3) {
-                const refH = Math.max(1, barH * 0.25);
-                ctx.globalAlpha = 0.12;
-                ctx.fillStyle = `hsl(${hue},${sat}%,${lit}%)`;
-                ctx.fillRect(x, h, barW, refH);
+                // Reflection
+                if (barH > 3) {
+                    const refH = Math.max(1, barH * 0.25);
+                    ctx.globalAlpha = 0.12;
+                    ctx.fillStyle = cached.reflectionColor;
+                    ctx.fillRect(x, h, barW, refH);
+                }
+            } else {
+                // Fallback for missing cache or custom heights
+                const intensity = Math.min(barH / 55, 1);
+                const distFromCenter = Math.abs(i - center) / center;
+                const hue = 340 + distFromCenter * 15;
+                const sat = 75 + (1 - distFromCenter) * 25;
+                const lit = 45 + intensity * 20;
+
+                const grad = ctx.createLinearGradient(0, y + barH, 0, y);
+                grad.addColorStop(0, `hsl(${hue},${sat}%,${lit - 15}%)`);
+                grad.addColorStop(1, `hsl(${hue},${sat}%,${lit}%)`);
+                ctx.globalAlpha = 0.55 + intensity * 0.45;
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barW, barH, [2, 2, 0, 0]);
+                ctx.fill();
+
+                if (barH > 3) {
+                    const refH = Math.max(1, barH * 0.25);
+                    ctx.globalAlpha = 0.12;
+                    ctx.fillStyle = `hsl(${hue},${sat}%,${lit}%)`;
+                    ctx.fillRect(x, h, barW, refH);
+                }
             }
         }
         ctx.globalAlpha = 1;
