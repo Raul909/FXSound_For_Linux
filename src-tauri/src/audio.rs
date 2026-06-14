@@ -254,6 +254,12 @@ impl AudioEngine {
             }
         }
 
+        // OPTIMIZATION: Early return if all bands are flat to skip the expensive O(N)
+        // audio sample processing loop and prevent redundant memory writes entirely.
+        if active_count == 0 {
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
