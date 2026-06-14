@@ -1,0 +1,3 @@
+## 2026-06-14 - Keyboard Accessibility for Custom Sliders
+**Learning:** Custom div-based interactive components (like audio sliders) remain completely inaccessible to keyboard and screen-reader users unless explicitly configured. They require more than just `onClick`/`onMouseDown` handlers; they need a distinct `role`, focusability (`tabIndex`), keyboard event handling, ARIA states (`aria-valuenow`, etc.), and crucially, visible focus indicators.
+**Action:** Always verify that interactive custom components have `tabIndex={0}`, semantic `role` definitions, appropriate `onKeyDown` listeners that prevent default scrolling, and `:focus-visible` CSS styles to ensure parity with mouse users.
