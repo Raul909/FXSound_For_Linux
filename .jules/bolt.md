@@ -1,0 +1,3 @@
+## 2026-06-14 - Optimize silence detection with Mean Absolute Value (MAV)
+**Learning:** In audio processing loops, calculating RMS (Root Mean Square) for silence detection requires N multiplications and a global square root operation, which are computationally expensive. Mean Absolute Value (MAV) provides a close approximation for silence thresholds while only requiring absolute values and addition.
+**Action:** Replace RMS with MAV (`mav < 0.0009`) in high-frequency DSP loops to eliminate expensive per-sample multiplications and global square root calculations, saving CPU cycles on every frame.
