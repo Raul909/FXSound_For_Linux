@@ -1,0 +1,3 @@
+## 2026-06-15 - Custom Div Sliders Keyboard Accessibility
+**Learning:** Custom div-based sliders require manual implementation of keyboard support (role, tabIndex, aria attributes, onKeyDown) since they lack native focus and interaction capabilities. Additionally, setting `outline: none` with `focus-visible` is needed to avoid clashing browser default outlines with custom focus indicators.
+**Action:** When building interactive custom UI components like sliders or toggles using non-semantic HTML elements (divs/spans), always proactively add the full suite of ARIA attributes, keyboard event handlers (handling default prevention for scrolling), and explicitly designed focus states.
