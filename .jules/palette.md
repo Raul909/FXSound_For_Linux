@@ -1,0 +1,3 @@
+## 2026-06-16 - Add keyboard accessibility to custom sliders
+**Learning:** Custom div-based sliders lack native accessibility and require manual implementation of roles (`slider`), ARIA attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`), keyboard navigation (`onKeyDown` with `Arrow` keys and `event.preventDefault()`), and focus management (`tabIndex` and `:focus-visible` styles with `outline: none`).
+**Action:** Always implement full ARIA and keyboard interaction patterns when creating custom interactive elements to ensure they are accessible to screen readers and keyboard users.
