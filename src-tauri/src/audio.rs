@@ -181,6 +181,12 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        // Validate effect name to prevent memory exhaustion (DoS) from untrusted IPC input
+        if !["fidelity", "ambiance", "dynamic", "surround", "bass"].contains(&effect) {
+            log::warn!("Attempted to set unknown effect: {}", effect);
+            return;
+        }
+
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
