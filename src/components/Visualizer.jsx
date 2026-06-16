@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const BAR_COUNT = 32;
@@ -38,6 +38,40 @@ export default function Visualizer({ powered }) {
         analyserRef.current = null;
     }, []);
 
+    // Pre-calculate bar gradients and colors to avoid per-frame object allocation
+    // and minimize garbage collection overhead in the high-frequency draw loop.
+    const barStyles = useMemo(() => {
+        const dummyCanvas = document.createElement("canvas");
+        const ctx = dummyCanvas.getContext("2d");
+        const cache = [];
+        const center = BAR_COUNT / 2;
+
+        for (let i = 0; i < BAR_COUNT; i++) {
+            const distFromCenter = Math.abs(i - center) / center;
+            const hue = 340 + distFromCenter * 15;
+            const sat = 75 + (1 - distFromCenter) * 25;
+
+            const heightGradients = [];
+            const reflectionColors = [];
+
+            for (let h_i = 0; h_i <= CANVAS_HEIGHT; h_i++) {
+                const intensity = Math.min(h_i / 55, 1);
+                const lit = 45 + intensity * 20;
+
+                // createLinearGradient(x0, y0, x1, y1)
+                // y0 = CANVAS_HEIGHT, y1 = CANVAS_HEIGHT - h_i
+                const grad = ctx.createLinearGradient(0, CANVAS_HEIGHT, 0, CANVAS_HEIGHT - h_i);
+                grad.addColorStop(0, `hsl(${hue},${sat}%,${lit - 15}%)`);
+                grad.addColorStop(1, `hsl(${hue},${sat}%,${lit}%)`);
+
+                heightGradients.push(grad);
+                reflectionColors.push(`hsl(${hue},${sat}%,${lit}%)`);
+            }
+            cache.push({ heightGradients, reflectionColors });
+        }
+        return cache;
+    }, []);
+
     // Draw bars onto the canvas — no React state, no DOM updates
     const drawFrame = useCallback((now, lastTimeRef) => {
         const canvas = canvasRef.current;
@@ -64,7 +98,6 @@ export default function Visualizer({ powered }) {
 
         const gap = 2;
         const barW = (w - gap * (BAR_COUNT - 1)) / BAR_COUNT;
-        const center = BAR_COUNT / 2;
 
         for (let i = 0; i < BAR_COUNT; i++) {
             const barH = isPowered ? Math.max(2, display[i] * 0.85) : 2;
@@ -79,17 +112,12 @@ export default function Visualizer({ powered }) {
                 continue;
             }
 
+            const hIdx = Math.min(Math.round(barH), CANVAS_HEIGHT);
             const intensity = Math.min(barH / 55, 1);
-            const distFromCenter = Math.abs(i - center) / center;
-            const hue = 340 + distFromCenter * 15;
-            const sat = 75 + (1 - distFromCenter) * 25;
-            const lit = 45 + intensity * 20;
+            const style = barStyles[i];
 
-            const grad = ctx.createLinearGradient(0, y + barH, 0, y);
-            grad.addColorStop(0, `hsl(${hue},${sat}%,${lit - 15}%)`);
-            grad.addColorStop(1, `hsl(${hue},${sat}%,${lit}%)`);
             ctx.globalAlpha = 0.55 + intensity * 0.45;
-            ctx.fillStyle = grad;
+            ctx.fillStyle = style.heightGradients[hIdx];
             ctx.beginPath();
             ctx.roundRect(x, y, barW, barH, [2, 2, 0, 0]);
             ctx.fill();
@@ -98,12 +126,12 @@ export default function Visualizer({ powered }) {
             if (barH > 3) {
                 const refH = Math.max(1, barH * 0.25);
                 ctx.globalAlpha = 0.12;
-                ctx.fillStyle = `hsl(${hue},${sat}%,${lit}%)`;
+                ctx.fillStyle = style.reflectionColors[hIdx];
                 ctx.fillRect(x, h, barW, refH);
             }
         }
         ctx.globalAlpha = 1;
-    }, []);
+    }, [barStyles]);
 
     useEffect(() => {
         let cancelled = false;
