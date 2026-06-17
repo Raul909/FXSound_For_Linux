@@ -181,6 +181,11 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        // Prevent memory exhaustion (DoS) by allow-listing valid IPC keys
+        if !["fidelity", "dynamic", "bass"].contains(&effect) {
+            log::warn!("Rejected invalid effect key: {}", effect);
+            return;
+        }
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
