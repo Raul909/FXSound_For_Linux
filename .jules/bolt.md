@@ -1,0 +1,3 @@
+## 2026-06-17 - Canvas Render Loop Optimization
+**Learning:** Recreating objects like CanvasGradient inside a high-frequency `requestAnimationFrame` loop causes severe garbage collection overhead and potential frame drops. In this codebase's audio visualizer, `ctx.createLinearGradient` and string concatenations for HSL colors were being calculated every single frame for all 32 bars.
+**Action:** Always precalculate and cache repetitive UI element structures (gradients, colors, and alpha values) using `useMemo` if they only depend on constant bounds (like max canvas height) and index. This changes per-frame allocation to an array lookup, yielding much smoother animations without changing visual fidelity.
