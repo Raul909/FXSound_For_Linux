@@ -1,0 +1,3 @@
+## 2026-06-18 - Add keyboard and screen reader accessibility to custom sliders
+**Learning:** Custom div-based sliders require manual implementation of tabIndex, ARIA roles (slider, valuenow, valuemin, valuemax), and keyboard navigation (onKeyDown) to function correctly for keyboard-only and screen reader users.
+**Action:** When creating custom interactive elements like sliders, always explicitly implement role="slider", handle Arrow up/down/left/right keys for adjustments, apply outline: none with :focus-visible equivalents for styling, and ensure focus indicators are clearly visible without relying on mouse hover.
