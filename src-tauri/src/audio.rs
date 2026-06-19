@@ -181,9 +181,16 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        // SECURITY: Allow-list effect names to prevent memory exhaustion (unbounded HashMap growth) and log injection.
+        let allowed_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+        if !allowed_effects.contains(&effect) {
+            log::warn!("Attempted to set unknown effect: {}", effect.escape_default());
+            return;
+        }
+
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
-        log::info!("Effect '{}' set to {:.1}", effect, clamped);
+        log::info!("Effect '{}' set to {:.1}", effect.escape_default(), clamped);
     }
 
     /// Toggle audio processing on or off.
