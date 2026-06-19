@@ -1,0 +1,3 @@
+## 2026-06-19 - Optimize Audio Engine Silence Detection
+**Learning:** In the backend `AudioEngine`, the previous silence detection algorithm calculated the true Root Mean Square (RMS) of the audio buffer via `rms.sqrt() < 0.001` before deciding to bypass processing. This was a critical bottleneck for system-level desktop audio processing which operates frequently and is often mostly silence, triggering expensive global square root operations uncessarily.
+**Action:** We can use the Mean Absolute Value (MAV) approximation (`mav < 0.0009`) in `audio.rs`. This avoids both per-sample square multiplications and the global square root calculations entirely, drastically reducing CPU cycles in the primary hot path while retaining reliable silence gating functionality.
