@@ -1,0 +1,3 @@
+## 2024-06-20 - Custom Audio Sliders Keyboard Accessibility
+**Learning:** Custom `div` sliders used in audio visualizers are inaccessible to keyboard and screen reader users by default. To make them fully accessible, they must include `tabIndex`, ARIA roles (`role="slider"`), range attributes (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`), and have a custom `onKeyDown` handler to map arrow key presses to value increments/decrements (while calling `event.preventDefault()` to block unintended page scroll).
+**Action:** Always implement comprehensive slider ARIA attributes alongside explicit keyboard event listeners when replacing native range inputs with custom div-based interactive slider components.
