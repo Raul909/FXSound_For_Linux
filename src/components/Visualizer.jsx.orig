@@ -12,8 +12,6 @@ const CANVAS_HEIGHT = 100;
  *
  * Props:
  *   powered — when false, bars flatten and capture stops
- *
- * Wrapped in React.memo to avoid re-rendering whenever App state (like EQ or FX) changes.
  */
 export default memo(function Visualizer({ powered }) {
     const canvasRef = useRef(null);
