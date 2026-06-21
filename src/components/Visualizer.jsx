@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const BAR_COUNT = 32;
@@ -13,7 +13,7 @@ const CANVAS_HEIGHT = 100;
  * Props:
  *   powered — when false, bars flatten and capture stops
  */
-export default function Visualizer({ powered }) {
+const Visualizer = memo(function Visualizer({ powered }) {
     const canvasRef = useRef(null);
     const targetData = useRef(new Float32Array(BAR_COUNT).fill(2));
     const displayData = useRef(new Float32Array(BAR_COUNT).fill(2));
@@ -214,4 +214,6 @@ export default function Visualizer({ powered }) {
             />
         </div>
     );
-}
+});
+
+export default Visualizer;

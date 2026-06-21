@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, DEVICES } from "./constants";
@@ -7,15 +7,15 @@ import EffectSlider from "./components/EffectSlider";
 import Visualizer from "./components/Visualizer";
 
 // Helper wrappers to give stable references via useCallback at the child level
-function EQBandWrapper({ freq, index, value, updateEQBand, disabled }) {
+const EQBandWrapper = memo(function EQBandWrapper({ freq, index, value, updateEQBand, disabled }) {
   const handleChange = useCallback((val) => updateEQBand(index, val), [index, updateEQBand]);
   return <EQBand freq={freq} value={value} onChange={handleChange} disabled={disabled} />;
-}
+});
 
-function EffectSliderWrapper({ label, effectKey, value, updateEffect, disabled }) {
+const EffectSliderWrapper = memo(function EffectSliderWrapper({ label, effectKey, value, updateEffect, disabled }) {
   const handleChange = useCallback((val) => updateEffect(effectKey, val), [effectKey, updateEffect]);
   return <EffectSlider label={label} value={value} onChange={handleChange} disabled={disabled} />;
-}
+});
 
 /**
  * Root application component for FXSound.
