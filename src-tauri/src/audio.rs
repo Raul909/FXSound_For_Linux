@@ -181,6 +181,10 @@ impl AudioEngine {
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        if !matches!(effect, "fidelity" | "dynamic" | "bass") {
+            log::warn!("Rejected invalid effect name: '{}'", effect);
+            return;
+        }
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
@@ -564,7 +568,8 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
                         .map(|n| n.to_string())
                         .unwrap_or_else(|| "Unknown Output".to_string())
                 });
-            if let Ok(mut list) = sinks_clone.lock() {
+            {
+                let mut list = sinks_clone.lock().unwrap_or_else(|e| e.into_inner());
                 list.push(name);
             }
         }
@@ -585,7 +590,7 @@ pub fn get_pulse_sinks() -> Result<Vec<String>, String> {
         while !*finished {
             let result = cvar
                 .wait_timeout(finished, timeout)
-                .map_err(|e| e.to_string())?;
+                .unwrap_or_else(|e| e.into_inner());
             finished = result.0;
             if result.1.timed_out() {
                 break;
