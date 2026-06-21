@@ -22,6 +22,18 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         return Math.round(Math.max(0, Math.min(100, ratio * 100)));
     }
 
+    // Handle keyboard interaction
+    function handleKeyDown(event) {
+        if (disabled) return;
+        if (event.key === "ArrowRight") {
+            event.preventDefault();
+            onChange(Math.min(100, value + 5)); // using 5 as step size to mimic easier sliding
+        } else if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            onChange(Math.max(0, value - 5));
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
@@ -55,8 +67,15 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-valuenow={value}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label={label}
             >
                 {/* Filled portion of the track */}
                 <div
