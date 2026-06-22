@@ -156,6 +156,11 @@ select option {
   transform: scale(1.08);
 }
 
+.power-btn:focus-visible {
+  outline: 2px solid #e63462;
+  outline-offset: 4px;
+}
+
 .power-btn--off {
   background: #16161d;
   border: 2px solid #1e1e2a;
@@ -282,6 +287,12 @@ select option {
   color: #888;
 }
 
+.tabs__btn:focus-visible {
+  outline: 2px solid #e63462;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
 .tabs__btn--active {
   color: #e63462;
   border-bottom-color: #e63462;
@@ -373,6 +384,11 @@ select option {
   border-color: #2a2a3a;
 }
 
+.eq-band__track:focus-visible {
+  outline: 2px solid #e63462;
+  outline-offset: 4px;
+}
+
 .eq-band__center-line {
   position: absolute;
   top: 50%;
@@ -452,6 +468,11 @@ select option {
 
 .effect-slider:hover .effect-slider__track {
   border-color: #2a2a3a;
+}
+
+.effect-slider__track:focus-visible {
+  outline: 2px solid #e63462;
+  outline-offset: 4px;
 }
 
 .effect-slider__fill {
