@@ -20,6 +20,9 @@ struct AppState {
 /// Set the gain (in dB) for a single EQ band.
 #[tauri::command]
 fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), String> {
+    if !gain.is_finite() {
+        return Err("Invalid gain value".to_string());
+    }
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_eq_band(band, gain);
     Ok(())
@@ -28,6 +31,12 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
 /// Set the intensity (0–100) for a named audio effect.
 #[tauri::command]
 fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), String> {
+    if !value.is_finite() {
+        return Err("Invalid effect value".to_string());
+    }
+    if effect.len() > 32 {
+        return Err("Effect name too long".to_string());
+    }
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_effect(&effect, value);
     Ok(())
