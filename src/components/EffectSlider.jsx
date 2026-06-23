@@ -22,6 +22,36 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         return Math.round(Math.max(0, Math.min(100, ratio * 100)));
     }
 
+    // Handle keyboard interaction
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+            newValue = Math.min(100, value + 5);
+            event.preventDefault();
+        } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+            newValue = Math.max(0, value - 5);
+            event.preventDefault();
+        } else if (event.key === "Home") {
+            newValue = 0;
+            event.preventDefault();
+        } else if (event.key === "End") {
+            newValue = 100;
+            event.preventDefault();
+        } else if (event.key === "PageUp") {
+            newValue = Math.min(100, value + 10);
+            event.preventDefault();
+        } else if (event.key === "PageDown") {
+            newValue = Math.max(0, value - 10);
+            event.preventDefault();
+        }
+
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
@@ -49,14 +79,22 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
     return (
         <div className="effect-slider">
             {/* Effect name */}
-            <span className="effect-slider__label">{label}</span>
+            <span className="effect-slider__label" aria-hidden="true">{label}</span>
 
             {/* Horizontal slider track */}
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={`${label} effect intensity`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={value}
+                aria-disabled={disabled}
             >
                 {/* Filled portion of the track */}
                 <div
