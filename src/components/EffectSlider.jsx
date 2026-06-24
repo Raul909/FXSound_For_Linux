@@ -22,6 +22,36 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         return Math.round(Math.max(0, Math.min(100, ratio * 100)));
     }
 
+    // Handle keyboard interaction
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+            newValue = Math.min(100, value + 5);
+            event.preventDefault();
+        } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+            newValue = Math.max(0, value - 5);
+            event.preventDefault();
+        } else if (event.key === "Home") {
+            newValue = 0;
+            event.preventDefault();
+        } else if (event.key === "End") {
+            newValue = 100;
+            event.preventDefault();
+        } else if (event.key === "PageUp") {
+            newValue = Math.min(100, value + 10);
+            event.preventDefault();
+        } else if (event.key === "PageDown") {
+            newValue = Math.max(0, value - 10);
+            event.preventDefault();
+        }
+
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     // Handle drag interaction on the slider track
     function handleMouseDown(event) {
         if (disabled) return;
