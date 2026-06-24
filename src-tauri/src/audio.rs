@@ -257,14 +257,20 @@ impl AudioEngine {
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
-        // Interleaved stereo: even indices = left, odd = right
-        for (i, sample) in output.iter_mut().enumerate() {
-            let channel = i % (CHANNELS as usize);
-            let mut s = *sample;
+        // Interleaved stereo: chunk[0] = left, chunk[1] = right
+        for chunk in output.chunks_exact_mut(CHANNELS as usize) {
+            let mut l = chunk[0];
+            let mut r = chunk[1];
+
             for &band in active_bands_slice {
-                s = self.filters[band].process(s, channel);
+                // Process left channel
+                l = self.filters[band].process(l, 0);
+                // Process right channel
+                r = self.filters[band].process(r, 1);
             }
-            *sample = s;
+
+            chunk[0] = l;
+            chunk[1] = r;
         }
     }
 
