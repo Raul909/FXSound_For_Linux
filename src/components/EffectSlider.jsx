@@ -46,17 +46,58 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Handle keyboard navigation for accessibility
+    function handleKeyDown(event) {
+        if (disabled) return;
+
+        let newValue = value;
+        switch (event.key) {
+            case "ArrowUp":
+            case "ArrowRight":
+                newValue = Math.min(100, value + 5);
+                event.preventDefault();
+                break;
+            case "ArrowDown":
+            case "ArrowLeft":
+                newValue = Math.max(0, value - 5);
+                event.preventDefault();
+                break;
+            case "Home":
+                newValue = 0;
+                event.preventDefault();
+                break;
+            case "End":
+                newValue = 100;
+                event.preventDefault();
+                break;
+            default:
+                return;
+        }
+
+        if (newValue !== value) {
+            onChange(newValue);
+        }
+    }
+
     return (
         <div className="effect-slider">
             {/* Effect name */}
-            <span className="effect-slider__label">{label}</span>
+            <span className="effect-slider__label" id={`label-${label.replace(/\s+/g, '-')}`}>{label}</span>
 
             {/* Horizontal slider track */}
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={value}
+                aria-disabled={disabled}
             >
                 {/* Filled portion of the track */}
                 <div
