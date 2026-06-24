@@ -16,35 +16,46 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
     const trackRef = useRef(null);
 
     // Convert a mouse X position to an effect value (0–100)
-    function xToValue(mouseX) {
-        const rect = trackRef.current.getBoundingClientRect();
+    // Uses a cached rect to avoid layout thrashing during drag
+    function xToValueWithRect(mouseX, rect) {
         const ratio = (mouseX - rect.left) / rect.width;
         return Math.round(Math.max(0, Math.min(100, ratio * 100)));
     }
 
-    // Handle keyboard interaction
+    // Handle keyboard interaction for accessibility
     function handleKeyDown(event) {
         if (disabled) return;
 
         let newValue = value;
-        if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-            newValue = Math.min(100, value + 5);
-            event.preventDefault();
-        } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-            newValue = Math.max(0, value - 5);
-            event.preventDefault();
-        } else if (event.key === "Home") {
-            newValue = 0;
-            event.preventDefault();
-        } else if (event.key === "End") {
-            newValue = 100;
-            event.preventDefault();
-        } else if (event.key === "PageUp") {
-            newValue = Math.min(100, value + 10);
-            event.preventDefault();
-        } else if (event.key === "PageDown") {
-            newValue = Math.max(0, value - 10);
-            event.preventDefault();
+        switch (event.key) {
+            case "ArrowRight":
+            case "ArrowUp":
+                newValue = Math.min(100, value + 5);
+                event.preventDefault();
+                break;
+            case "ArrowLeft":
+            case "ArrowDown":
+                newValue = Math.max(0, value - 5);
+                event.preventDefault();
+                break;
+            case "Home":
+                newValue = 0;
+                event.preventDefault();
+                break;
+            case "End":
+                newValue = 100;
+                event.preventDefault();
+                break;
+            case "PageUp":
+                newValue = Math.min(100, value + 10);
+                event.preventDefault();
+                break;
+            case "PageDown":
+                newValue = Math.max(0, value - 10);
+                event.preventDefault();
+                break;
+            default:
+                return;
         }
 
         if (newValue !== value) {
@@ -53,14 +64,16 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
     }
 
     // Handle drag interaction on the slider track
+    // Caches getBoundingClientRect on mousedown to prevent layout thrashing
     function handleMouseDown(event) {
         if (disabled) return;
 
-        let lastValue = xToValue(event.clientX);
+        const rect = trackRef.current.getBoundingClientRect();
+        let lastValue = xToValueWithRect(event.clientX, rect);
         onChange(lastValue);
 
         function handleMouseMove(moveEvent) {
-            const newValue = xToValue(moveEvent.clientX);
+            const newValue = xToValueWithRect(moveEvent.clientX, rect);
             if (newValue !== lastValue) {
                 lastValue = newValue;
                 onChange(newValue);
@@ -74,39 +87,6 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
 
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
-    }
-
-    // Handle keyboard navigation for accessibility
-    function handleKeyDown(event) {
-        if (disabled) return;
-
-        let newValue = value;
-        switch (event.key) {
-            case "ArrowUp":
-            case "ArrowRight":
-                newValue = Math.min(100, value + 5);
-                event.preventDefault();
-                break;
-            case "ArrowDown":
-            case "ArrowLeft":
-                newValue = Math.max(0, value - 5);
-                event.preventDefault();
-                break;
-            case "Home":
-                newValue = 0;
-                event.preventDefault();
-                break;
-            case "End":
-                newValue = 100;
-                event.preventDefault();
-                break;
-            default:
-                return;
-        }
-
-        if (newValue !== value) {
-            onChange(newValue);
-        }
     }
 
     return (
@@ -134,7 +114,7 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
                     className="effect-slider__fill"
                     style={{
                         width: `${value}%`,
-                        opacity: disabled ? 0.3 : 0.2,
+                        opacity: disabled ? 0.3 : 1,
                     }}
                 />
 

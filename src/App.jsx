@@ -129,6 +129,12 @@ export default function App() {
     { label: "HyperBass", key: "bass" },
   ], []);
 
+  // Truncate long device names for the status bar display
+  const shortDeviceName = useMemo(() => {
+    if (!device) return "No Device";
+    return device.length > 28 ? device.substring(0, 26) + "…" : device;
+  }, [device]);
+
   // ---------- Render ----------
 
   return (
@@ -254,7 +260,7 @@ export default function App() {
               {powered ? "ACTIVE" : "BYPASSED"}
             </span>
           </div>
-          <span className="status-bar__info">PulseAudio · 48kHz</span>
+          <span className="status-bar__info">{shortDeviceName} · 48kHz</span>
           <span className="status-bar__preset">{preset.toUpperCase()}</span>
         </div>
 

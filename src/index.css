@@ -1,58 +1,64 @@
 /* ============================================================
    FXSound for Linux — Global Styles
    ============================================================
-   Color palette:
-     --bg-deep:    #08080a  (deepest backgrounds)
-     --bg-dark:    #0e0e12  (panel backgrounds)
-     --bg-medium:  #16161d  (app background, track fills)
-     --border:     #1e1e2a  (subtle borders)
-     --border-glow:#2a2a3a  (hover/focus border)
-     --text-dim:   #555     (secondary text, disabled)
-     --text-muted: #888     (secondary text)
-     --text-light: #c5c5d0  (primary text)
-     --accent:     #e63462  (FXSound red)
-     --accent-alt: #f7546f  (lighter red for gradients)
-     --accent-glow: rgba(230, 52, 98, 0.35)
-     --green:      #28ca42  (active indicator)
+   Authentic FXSound dark theme with red accent.
+   Uses CSS custom properties for easy theming.
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* ---- Design Tokens ---- */
+
+:root {
+  --bg-deepest:   #030305;
+  --bg-deep:      #050507;
+  --bg-dark:      #0a0a0f;
+  --bg-medium:    #111118;
+  --bg-elevated:  #16161d;
+
+  --border:       #1a1a25;
+  --border-hover: #252535;
+  --border-glow:  #2a2a3a;
+
+  --text-dim:     #444;
+  --text-muted:   #777;
+  --text-light:   #c5c5d0;
+  --text-bright:  #e0e0e8;
+
+  --accent:       #e63462;
+  --accent-light: #f7546f;
+  --accent-dark:  #b8243e;
+  --accent-deep:  #8b1a2f;
+  --accent-glow:  rgba(230, 52, 98, 0.35);
+
+  --green:        #28ca42;
+
+  --radius-sm:    6px;
+  --radius-md:    10px;
+  --radius-lg:    16px;
+}
+
 /* ---- Keyframes ---- */
 
 @keyframes pulseGlow {
-
-  0%,
-  100% {
+  0%, 100% {
     box-shadow: 0 0 18px rgba(230, 52, 98, 0.5), 0 4px 14px rgba(213, 21, 53, 0.3);
   }
-
   50% {
     box-shadow: 0 0 28px rgba(230, 52, 98, 0.7), 0 4px 20px rgba(213, 21, 53, 0.5);
   }
 }
 
 @keyframes activeGlow {
-
-  0%,
-  100% {
+  0%, 100% {
     box-shadow: 0 0 6px rgba(40, 202, 66, 0.5);
   }
-
   50% {
     box-shadow: 0 0 12px rgba(40, 202, 66, 0.8);
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-
-  100% {
-    background-position: 200% 0;
-  }
-}
+/* ---- Reset ---- */
 
 * {
   box-sizing: border-box;
@@ -63,9 +69,10 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-deepest);
 }
 
 select {
@@ -73,8 +80,8 @@ select {
 }
 
 select option {
-  background: #0a0a0f;
-  color: #c5c5d0;
+  background: var(--bg-dark);
+  color: var(--text-light);
 }
 
 
@@ -82,7 +89,7 @@ select option {
 
 .app-container {
   min-height: 100vh;
-  background: #0a0a0f;
+  background: var(--bg-deepest);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -91,13 +98,13 @@ select option {
 
 .app-window {
   width: 480px;
-  background: #0e0e12;
-  border-radius: 18px;
-  border: 1px solid #1e1e2a;
+  background: var(--bg-dark);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.7),
-    0 0 1px rgba(230, 52, 98, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    0 24px 80px rgba(0, 0, 0, 0.8),
+    0 0 1px rgba(230, 52, 98, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
   overflow: hidden;
 }
 
@@ -105,9 +112,9 @@ select option {
 /* ---- Header (Brand + Power + Dropdowns) ---- */
 
 .header {
-  background: linear-gradient(180deg, #111118 0%, #0e0e12 100%);
+  background: linear-gradient(180deg, var(--bg-medium) 0%, var(--bg-dark) 100%);
   padding: 18px 20px 16px;
-  border-bottom: 1px solid #1e1e2a;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -124,13 +131,13 @@ select option {
 .header__brand {
   font-size: 10px;
   font-weight: 700;
-  color: #c5c5d0;
-  letter-spacing: 2px;
-  opacity: 0.7;
+  color: var(--text-light);
+  letter-spacing: 2.5px;
+  opacity: 0.8;
 }
 
 .header__brand-fx {
-  color: #e63462;
+  color: var(--accent);
   opacity: 1;
 }
 
@@ -147,7 +154,7 @@ select option {
 }
 
 .power-btn--on {
-  background: radial-gradient(circle at 35% 30%, #f7546f, #c4122e);
+  background: radial-gradient(circle at 35% 30%, var(--accent-light), #c4122e);
   border: 2px solid rgba(230, 52, 98, 0.7);
   animation: pulseGlow 2.5s ease-in-out infinite;
 }
@@ -157,13 +164,13 @@ select option {
 }
 
 .power-btn--off {
-  background: #16161d;
-  border: 2px solid #1e1e2a;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .power-btn--off:hover {
-  border-color: #2a2a3a;
+  border-color: var(--border-hover);
   transform: scale(1.05);
 }
 
@@ -179,7 +186,7 @@ select option {
 
 .dropdown__label {
   font-size: 9px;
-  color: #555;
+  color: var(--text-dim);
   letter-spacing: 1.5px;
   margin-bottom: 3px;
   font-weight: 600;
@@ -192,12 +199,12 @@ select option {
 
 .dropdown__select {
   width: 100%;
-  background: #0a0a0f;
-  border: 1px solid #1e1e2a;
-  border-radius: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 8px 32px 8px 14px;
   font-size: 12px;
-  color: #c5c5d0;
+  color: var(--text-light);
   outline: none;
   font-family: 'Inter', 'Segoe UI', sans-serif;
   font-weight: 500;
@@ -206,7 +213,7 @@ select option {
 }
 
 .dropdown__select:hover:not(:disabled) {
-  border-color: #2a2a3a;
+  border-color: var(--border-hover);
 }
 
 .dropdown__select:focus {
@@ -216,7 +223,7 @@ select option {
 
 .dropdown__select:disabled {
   cursor: default;
-  color: #444;
+  color: var(--text-dim);
   opacity: 0.6;
 }
 
@@ -233,9 +240,9 @@ select option {
 /* ---- Visualizer ---- */
 
 .visualizer {
-  background: #0a0a0f;
-  height: 100px;
-  border-bottom: 1px solid #1e1e2a;
+  background: var(--bg-deep);
+  height: 120px;
+  border-bottom: 1px solid var(--border);
   padding: 0 12px;
   overflow: hidden;
   position: relative;
@@ -248,7 +255,7 @@ select option {
   left: 0;
   right: 0;
   height: 100%;
-  background: radial-gradient(ellipse at 50% 100%, rgba(230, 52, 98, 0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse at 50% 120%, rgba(230, 52, 98, 0.08) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
@@ -258,8 +265,8 @@ select option {
 
 .tabs {
   display: flex;
-  background: #0e0e12;
-  border-bottom: 1px solid #1e1e2a;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
 }
 
 .tabs__btn {
@@ -268,7 +275,7 @@ select option {
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #555;
+  color: var(--text-dim);
   font-size: 11px;
   letter-spacing: 1.8px;
   font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -279,23 +286,23 @@ select option {
 }
 
 .tabs__btn:hover {
-  color: #888;
+  color: var(--text-muted);
 }
 
 .tabs__btn--active {
-  color: #e63462;
-  border-bottom-color: #e63462;
+  color: var(--accent);
+  border-bottom-color: transparent;
 }
 
 .tabs__btn--active::after {
   content: '';
   position: absolute;
   bottom: -1px;
-  left: 20%;
-  right: 20%;
+  left: 15%;
+  right: 15%;
   height: 2px;
-  background: #e63462;
-  box-shadow: 0 0 10px rgba(230, 52, 98, 0.5);
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(230, 52, 98, 0.6);
   border-radius: 2px;
 }
 
@@ -306,6 +313,7 @@ select option {
   padding: 22px 20px;
   transition: opacity 0.3s ease;
   min-height: 280px;
+  background: var(--bg-dark);
 }
 
 
@@ -323,18 +331,18 @@ select option {
   display: flex;
   justify-content: space-between;
   padding-top: 12px;
-  border-top: 1px solid #16161d;
+  border-top: 1px solid var(--bg-elevated);
 }
 
 .eq-footer__label {
   font-size: 9px;
-  color: #555;
+  color: var(--text-dim);
   font-weight: 500;
 }
 
 .eq-footer__title {
   font-size: 9px;
-  color: #555;
+  color: var(--text-dim);
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -353,24 +361,24 @@ select option {
 
 .eq-band__value {
   font-size: 10px;
-  color: #c5c5d0;
+  color: var(--text-light);
   font-weight: 600;
   min-height: 14px;
   transition: color 0.2s;
 }
 
 .eq-band__track {
-  width: 20px;
-  height: 140px;
-  background: #0a0a0f;
-  border-radius: 10px;
+  width: 22px;
+  height: 160px;
+  background: var(--bg-deep);
+  border-radius: var(--radius-md);
   position: relative;
-  border: 1px solid #1e1e2a;
+  border: 1px solid var(--border);
   transition: border-color 0.2s;
 }
 
 .eq-band__track:hover {
-  border-color: #2a2a3a;
+  border-color: var(--border-hover);
 }
 
 .eq-band__track:focus-visible {
@@ -385,7 +393,22 @@ select option {
   left: 4px;
   right: 4px;
   height: 1px;
-  background: #1e1e2a;
+  background: var(--border);
+}
+
+.eq-band__fill {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  background: linear-gradient(to top, var(--accent-dark), var(--accent));
+  border-radius: 4px;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+  z-index: 1;
+}
+
+.eq-band__track:hover .eq-band__fill {
+  opacity: 0.45;
 }
 
 .eq-band__guide {
@@ -403,10 +426,10 @@ select option {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #f7546f, #e63462);
-  border: 2px solid #0e0e12;
+  background: radial-gradient(circle at 35% 30%, var(--accent-light), var(--accent));
+  border: 2px solid var(--bg-dark);
   box-shadow: 0 2px 8px rgba(230, 52, 98, 0.45), 0 0 0 0 rgba(230, 52, 98, 0.2);
-  z-index: 2;
+  z-index: 3;
   transition: box-shadow 0.2s, transform 0.15s;
 }
 
@@ -417,7 +440,7 @@ select option {
 
 .eq-band__freq {
   font-size: 8px;
-  color: #555;
+  color: var(--text-dim);
   font-weight: 500;
   letter-spacing: 0.3px;
 }
@@ -435,7 +458,7 @@ select option {
 .effect-slider__label {
   width: 110px;
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   text-align: right;
   flex-shrink: 0;
   font-weight: 500;
@@ -443,21 +466,21 @@ select option {
 }
 
 .effect-slider:hover .effect-slider__label {
-  color: #c5c5d0;
+  color: var(--text-light);
 }
 
 .effect-slider__track {
   flex: 1;
-  height: 5px;
-  background: #0a0a0f;
+  height: 6px;
+  background: var(--bg-deep);
   border-radius: 3px;
   position: relative;
-  border: 1px solid #1e1e2a;
+  border: 1px solid var(--border);
   transition: border-color 0.2s;
 }
 
 .effect-slider:hover .effect-slider__track {
-  border-color: #2a2a3a;
+  border-color: var(--border-hover);
 }
 
 .effect-slider__track:focus-visible {
@@ -468,7 +491,7 @@ select option {
 
 .effect-slider__fill {
   height: 100%;
-  background: linear-gradient(to right, #b8243e, #e63462, #f7546f);
+  background: linear-gradient(to right, var(--accent-dark), var(--accent), var(--accent-light));
   border-radius: 3px;
   transition: opacity 0.2s;
 }
@@ -480,8 +503,8 @@ select option {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #f7546f, #e63462);
-  border: 2px solid #0e0e12;
+  background: radial-gradient(circle at 35% 30%, var(--accent-light), var(--accent));
+  border: 2px solid var(--bg-dark);
   box-shadow: 0 2px 8px rgba(230, 52, 98, 0.4);
   transition: box-shadow 0.2s, transform 0.15s;
 }
@@ -494,7 +517,7 @@ select option {
 .effect-slider__value {
   width: 32px;
   font-size: 11px;
-  color: #e63462;
+  color: var(--accent);
   flex-shrink: 0;
   font-weight: 600;
   text-align: center;
@@ -511,8 +534,8 @@ select option {
 /* ---- Status Bar ---- */
 
 .status-bar {
-  background: linear-gradient(180deg, #0a0a0f 0%, #08080a 100%);
-  border-top: 1px solid #1e1e2a;
+  background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-deepest) 100%);
+  border-top: 1px solid var(--border);
   padding: 10px 20px;
   display: flex;
   align-items: center;
@@ -529,35 +552,39 @@ select option {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #444;
+  background: var(--text-dim);
   transition: all 0.3s;
 }
 
 .status-bar__dot--active {
-  background: #28ca42;
+  background: var(--green);
   animation: activeGlow 2s ease-in-out infinite;
 }
 
 .status-bar__text {
   font-size: 10px;
-  color: #555;
+  color: var(--text-dim);
   letter-spacing: 1px;
   font-weight: 600;
 }
 
 .status-bar__text--active {
-  color: #28ca42;
+  color: var(--green);
 }
 
 .status-bar__info {
   font-size: 10px;
-  color: #555;
+  color: var(--text-dim);
   font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-bar__preset {
   font-size: 10px;
-  color: #888;
+  color: var(--text-muted);
   font-weight: 600;
   letter-spacing: 0.5px;
 }

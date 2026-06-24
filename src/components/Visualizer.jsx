@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 const BAR_COUNT = 32;
-const CANVAS_HEIGHT = 100;
+const CANVAS_HEIGHT = 120;
 
 /**
  * Real-time audio spectrum visualizer (canvas-based).
@@ -23,6 +23,9 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
     const analyserRef = useRef(null);
     const streamRef = useRef(null);
     const poweredRef = useRef(powered);
+    // Cache the CanvasGradient to avoid recreating it every frame
+    const gradientCacheRef = useRef(null);
+    const lastCanvasWidthRef = useRef(0);
 
     // Keep poweredRef in sync without re-running the main effect
     useEffect(() => { poweredRef.current = powered; }, [powered]);
@@ -37,6 +40,23 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             audioCtxRef.current = null;
         }
         analyserRef.current = null;
+    }, []);
+
+    // Create or retrieve the cached red gradient for bars
+    const getBarGradient = useCallback((ctx, h) => {
+        const w = ctx.canvas.width;
+        if (gradientCacheRef.current && lastCanvasWidthRef.current === w) {
+            return gradientCacheRef.current;
+        }
+        const grad = ctx.createLinearGradient(0, h, 0, 0);
+        grad.addColorStop(0, "#6b0f20");     // Deep dark red at base
+        grad.addColorStop(0.3, "#a11d38");   // Rich red
+        grad.addColorStop(0.6, "#e63462");   // FXSound accent red
+        grad.addColorStop(0.85, "#f7546f");  // Lighter red
+        grad.addColorStop(1, "#ff7a8a");     // Bright tip
+        gradientCacheRef.current = grad;
+        lastCanvasWidthRef.current = w;
+        return grad;
     }, []);
 
     // Draw bars onto the canvas — no React state, no DOM updates
@@ -63,52 +83,64 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
 
         ctx.clearRect(0, 0, w, h);
 
-        const gap = 2;
+        // Draw subtle horizontal baseline
+        ctx.strokeStyle = "rgba(230, 52, 98, 0.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, h - 1);
+        ctx.lineTo(w, h - 1);
+        ctx.stroke();
+
+        const gap = 3;
         const barW = (w - gap * (BAR_COUNT - 1)) / BAR_COUNT;
-        const center = BAR_COUNT / 2;
+
+        // Get cached gradient
+        const barGrad = isPowered ? getBarGradient(ctx, h) : null;
 
         for (let i = 0; i < BAR_COUNT; i++) {
-            const barH = isPowered ? Math.max(2, display[i] * 0.85) : 2;
+            const barH = isPowered ? Math.max(2, display[i] * 1.0) : 2;
             const x = i * (barW + gap);
             const y = h - barH;
 
             if (!isPowered) {
                 ctx.fillStyle = "#1e1e2a";
                 ctx.globalAlpha = 0.3;
-                ctx.fillRect(x, y, barW, barH);
+                ctx.beginPath();
+                ctx.roundRect(x, y, barW, barH, [1, 1, 0, 0]);
+                ctx.fill();
                 ctx.globalAlpha = 1;
                 continue;
             }
 
-            const intensity = Math.min(barH / 55, 1);
-            const distFromCenter = Math.abs(i - center) / center;
-            const hue = 340 + distFromCenter * 15;
-            const sat = 75 + (1 - distFromCenter) * 25;
-            const lit = 45 + intensity * 20;
+            const intensity = Math.min(barH / 70, 1);
 
-            const grad = ctx.createLinearGradient(0, y + barH, 0, y);
-            grad.addColorStop(0, `hsl(${hue},${sat}%,${lit - 15}%)`);
-            grad.addColorStop(1, `hsl(${hue},${sat}%,${lit}%)`);
-            ctx.globalAlpha = 0.55 + intensity * 0.45;
-            ctx.fillStyle = grad;
+            ctx.globalAlpha = 0.5 + intensity * 0.5;
+            ctx.fillStyle = barGrad;
             ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, [2, 2, 0, 0]);
+            ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
             ctx.fill();
 
-            // Reflection
-            if (barH > 3) {
-                const refH = Math.max(1, barH * 0.25);
-                ctx.globalAlpha = 0.12;
-                ctx.fillStyle = `hsl(${hue},${sat}%,${lit}%)`;
+            // Top glow highlight on taller bars
+            if (barH > 8) {
+                ctx.globalAlpha = intensity * 0.4;
+                ctx.fillStyle = "#ff8a9a";
+                ctx.fillRect(x + 1, y, barW - 2, 2);
+            }
+
+            // Reflection below baseline
+            if (barH > 4) {
+                const refH = Math.max(1, barH * 0.2);
+                ctx.globalAlpha = 0.08 + intensity * 0.04;
+                ctx.fillStyle = barGrad;
                 ctx.fillRect(x, h, barW, refH);
             }
         }
         ctx.globalAlpha = 1;
-    }, []);
+    }, [getBarGradient]);
 
     useEffect(() => {
         let cancelled = false;
-        let pollInterval = null;
+        let pollTimeout = null;
         const lastTimeRef = { current: performance.now() };
 
         async function tryBackend() {
@@ -141,19 +173,28 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             if (cancelled) return;
 
             if (await tryBackend()) {
-                pollInterval = setInterval(async () => {
-                    try {
-                        const data = await invoke("get_visualizer_data");
-                        const src = targetData.current;
-                        const ratio = data.length / BAR_COUNT;
-                        for (let i = 0; i < BAR_COUNT; i++) {
-                            const si = Math.floor(i * ratio);
-                            const ni = Math.min(si + 1, data.length - 1);
-                            const f = (i * ratio) - si;
-                            src[i] = data[si] * (1 - f) + data[ni] * f;
-                        }
-                    } catch { /* ignore */ }
-                }, 50);
+                // Use recursive setTimeout instead of setInterval to prevent overlapping async calls
+                function pollBackend() {
+                    if (cancelled) return;
+                    invoke("get_visualizer_data")
+                        .then((data) => {
+                            const src = targetData.current;
+                            const ratio = data.length / BAR_COUNT;
+                            for (let i = 0; i < BAR_COUNT; i++) {
+                                const si = Math.floor(i * ratio);
+                                const ni = Math.min(si + 1, data.length - 1);
+                                const f = (i * ratio) - si;
+                                src[i] = data[si] * (1 - f) + data[ni] * f;
+                            }
+                        })
+                        .catch(() => { /* ignore */ })
+                        .finally(() => {
+                            if (!cancelled) {
+                                pollTimeout = setTimeout(pollBackend, 50);
+                            }
+                        });
+                }
+                pollBackend();
                 return;
             }
 
@@ -178,14 +219,17 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
 
             // Idle animation
             let phase = 0;
-            pollInterval = setInterval(() => {
+            function idleAnimation() {
+                if (cancelled) return;
                 phase += 0.08;
                 const tgt = targetData.current;
                 for (let i = 0; i < BAR_COUNT; i++) {
                     tgt[i] = (Math.sin(phase + i * 0.3) * 0.5 + 0.5 +
                                Math.sin(phase * 1.3 + i * 0.2) * 0.3 + 0.3) * 35 + 5;
                 }
-            }, 50);
+                pollTimeout = setTimeout(idleAnimation, 50);
+            }
+            idleAnimation();
         }
 
         init();
@@ -199,7 +243,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
 
         return () => {
             cancelled = true;
-            if (pollInterval) clearInterval(pollInterval);
+            if (pollTimeout) clearTimeout(pollTimeout);
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             cleanupWebAudio();
         };

@@ -36,7 +36,31 @@ FXSound is a popular Windows audio enhancer — but it has **no Linux version**.
 - **PipeWire/PulseAudio Integration** — processes system audio in real time
 - **Power Toggle** — instantly bypass all audio processing
 - **Authentic FXSound Dark UI** — black and red theme matching the original Windows app
+- **Keyboard Accessible** — full keyboard navigation with ARIA roles on all sliders
 - **Native Linux App** — built with Tauri (Rust + React) for low resource usage
+
+---
+
+## Requirements
+
+- **Linux** — Any distro with a modern desktop environment
+- **Audio System** — PulseAudio or PipeWire (with PulseAudio compatibility layer)
+  - Most modern distros ship with PipeWire by default (Ubuntu 22.10+, Fedora 34+, Arch)
+  - Older distros use PulseAudio natively — both work
+- **Architecture** — x86_64 (amd64)
+
+---
+
+## Quick Start
+
+1. Download the AppImage (or .deb/.rpm) from the [latest release](https://github.com/Raul909/FXSound_For_Linux/releases/latest)
+2. Make it executable: `chmod +x fxsound-linux_*.AppImage`
+3. Run it: `./fxsound-linux_*.AppImage`
+4. On first launch, the app will automatically detect your audio output devices
+5. Select a preset from the dropdown (e.g., "Music") to get started
+6. Adjust individual EQ bands or effect sliders to taste — any manual change switches to "Custom" preset
+
+> **Note:** The app captures and re-outputs your system audio through its processing pipeline. If you hear double audio, make sure only one instance is running.
 
 ---
 
@@ -44,17 +68,23 @@ FXSound is a popular Windows audio enhancer — but it has **no Linux version**.
 
 ### AppImage (Universal — All Distros)
 
+The simplest way to run FXSound on any Linux distribution:
+
 ```bash
 wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage
 chmod +x fxsound-linux_1.0.0_amd64.AppImage
 ./fxsound-linux_1.0.0_amd64.AppImage
 ```
 
+> **Tip:** If you get a "Permission denied" error, make sure you've run `chmod +x` on the file.
+
 ### Debian / Ubuntu / Pop!_OS / Mint
 
 ```bash
 wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb
 sudo dpkg -i fxsound-linux_1.0.0_amd64.deb
+# If you get dependency errors:
+sudo apt-get install -f
 ```
 
 ### Fedora / RHEL / openSUSE
@@ -76,32 +106,69 @@ sudo snap install fxsound-linux
 yay -S fxsound-linux
 ```
 
+### Flatpak
+
+> 🚧 Coming soon — Flatpak/Flathub support is on the roadmap.
+
 [→ Download Latest Release](https://github.com/Raul909/FXSound_For_Linux/releases/latest)
 
 ---
 
 ## Build from Source
 
-```bash
-# Clone the repo
-git clone https://github.com/Raul909/FXSound_For_Linux.git
-cd FXSound_For_Linux
+### Ubuntu / Debian
 
-# Install system dependencies (Ubuntu/Debian)
+```bash
+# Install system dependencies
 sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
-  librsvg2-dev libpulse-dev build-essential curl wget
+  librsvg2-dev libpulse-dev build-essential curl wget pkg-config
 
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
 
-# Install Node dependencies
+# Clone and build
+git clone https://github.com/Raul909/FXSound_For_Linux.git
+cd FXSound_For_Linux
 npm install
+npm run tauri:dev       # Development mode (hot reload)
+# npm run tauri:build   # Production binary (output in src-tauri/target/release)
+```
 
-# Run in development mode
+### Fedora / RHEL
+
+```bash
+# Install system dependencies
+sudo dnf install webkit2gtk4.1-devel gtk3-devel libappindicator-gtk3-devel \
+  librsvg2-devel pulseaudio-libs-devel gcc pkg-config
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+# Clone and build
+git clone https://github.com/Raul909/FXSound_For_Linux.git
+cd FXSound_For_Linux
+npm install
 npm run tauri:dev
+```
 
-# Build production binary
-npm run tauri:build
+### Arch Linux / Manjaro
+
+```bash
+# Install system dependencies
+sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg libpulse \
+  base-devel curl wget pkg-config
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+# Clone and build
+git clone https://github.com/Raul909/FXSound_For_Linux.git
+cd FXSound_For_Linux
+npm install
+npm run tauri:dev
 ```
 
 ---
@@ -127,6 +194,52 @@ npm run tauri:build
 
 ---
 
+## Troubleshooting
+
+### "404 Not Found" when downloading
+
+Make sure you're downloading from the [latest release page](https://github.com/Raul909/FXSound_For_Linux/releases/latest). The download URLs contain the version number — if a newer version is released, old URLs may stop working.
+
+### No audio output / Double audio
+
+- Make sure only **one instance** of FXSound is running
+- Check that PulseAudio/PipeWire is running: `pactl info`
+- Restart PulseAudio if needed: `pulseaudio -k && pulseaudio --start`
+- For PipeWire: `systemctl --user restart pipewire pipewire-pulse`
+
+### AppImage won't launch
+
+```bash
+# Make it executable
+chmod +x fxsound-linux_*.AppImage
+
+# If you get a FUSE error on newer distros:
+sudo apt install libfuse2    # Ubuntu 22.04+
+# or extract and run directly:
+./fxsound-linux_*.AppImage --appimage-extract
+./squashfs-root/AppRun
+```
+
+### "Failed to start audio processor" error
+
+This usually means PulseAudio can't find a monitor source. Check:
+```bash
+# List available sources (look for one ending in .monitor)
+pactl list short sources
+
+# If no monitor source exists, you may need to load the module:
+pactl load-module module-loopback
+```
+
+### Build errors
+
+- Make sure all system dependencies are installed (see [Build from Source](#build-from-source))
+- Ensure Rust is up to date: `rustup update`
+- Ensure Node.js 18+ is installed: `node --version`
+- Clear build cache: `cd src-tauri && cargo clean && cd .. && npm run tauri:build`
+
+---
+
 ## Roadmap
 
 - [x] 10-band EQ with biquad filters
@@ -138,6 +251,7 @@ npm run tauri:build
 - [x] GitHub Actions release pipeline
 - [x] Snap Store publishing
 - [x] Cloudflare Pages landing site
+- [x] Keyboard accessibility (ARIA sliders)
 - [ ] Reverb (Ambiance effect)
 - [ ] HRTF 3D Surround
 - [ ] Save/export custom presets
@@ -183,6 +297,9 @@ Any distro with PulseAudio or PipeWire — Ubuntu, Arch, Fedora, Debian, Mint, P
 
 **Is it free?**
 Yes, completely free and open-source (MIT license).
+
+**Can I change the visualizer colors or theme?**
+The app uses the authentic FXSound dark theme with red accents. Custom themes are not yet supported but are being considered for future releases.
 
 ---
 
