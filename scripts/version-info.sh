@@ -6,18 +6,18 @@ cat << 'EOF'
 ║           FXSound Linux - Version Management                 ║
 ╚══════════════════════════════════════════════════════════════╝
 
-Current Version: 1.0.0
+Current Version: 1.0.3
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📋 Version Locations:
 
-  1. package.json              → "version": "1.0.0"
-  2. src-tauri/Cargo.toml      → version = "1.0.0"
-  3. src-tauri/tauri.conf.json → "version": "1.0.0"
-  4. src/App.jsx               → v1.0.0 (UI display)
-  5. PKGBUILD                  → pkgver=1.0.0
-  6. com.fxsound.linux.yml     → tag: v1.0.0
+  1. package.json              → "version": "1.0.3"
+  2. src-tauri/Cargo.toml      → version = "1.0.3"
+  3. src-tauri/tauri.conf.json → "version": "1.0.3"
+  4. src/App.jsx               → v1.0.3 (UI display)
+  5. PKGBUILD                  → pkgver=1.0.3
+  6. com.fxsound.linux.yml     → tag: v1.0.3
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -39,9 +39,9 @@ Current Version: 1.0.0
   When you run: npm run tauri:build
 
   You'll get:
-    • fxsound-linux_1.0.0_amd64.AppImage
-    • fxsound-linux_1.0.0_amd64.deb
-    • fxsound-linux-1.0.0-1.x86_64.rpm
+    • fxsound-linux_1.0.3_amd64.AppImage
+    • fxsound-linux_1.0.3_amd64.deb
+    • fxsound-linux-1.0.3-1.x86_64.rpm
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -50,7 +50,7 @@ Current Version: 1.0.0
   1. Verify: ./verify-version.sh
   2. Build:  ./build-release.sh
   3. Test:   Test the AppImage
-  4. Tag:    git tag v1.0.0 && git push origin v1.0.0
+  4. Tag:    git tag v1.0.3 && git push origin v1.0.3
   5. Upload: Create GitHub release and upload files
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -76,6 +76,6 @@ Current Version: 1.0.0
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ Status: All versions synchronized to 1.0.0
+✅ Status: All versions synchronized to 1.0.3
 
 EOF

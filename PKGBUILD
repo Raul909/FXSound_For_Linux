@@ -1,6 +1,6 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=fxsound-linux
-pkgver=1.0.0
+pkgver=1.0.3
 pkgrel=1
 pkgdesc="Audio enhancer with 10-band EQ and effects"
 arch=('x86_64')

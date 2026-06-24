@@ -334,24 +334,53 @@ impl AudioEngine {
 
     /// Compute FFT magnitudes from the output buffer and store for the visualizer.
     fn update_fft(&mut self, buffer: &[f32]) {
-        if buffer.len() < FFT_SIZE {
+        // Since input is stereo (interleaved), we need at least FFT_SIZE * 2 samples
+        if buffer.len() < FFT_SIZE * 2 {
             return;
         }
 
-        // Re-use complex buffer
-        for (sample, complex) in buffer[..FFT_SIZE]
-            .iter()
+        // Mix interleaved stereo to mono into the complex buffer
+        for (chunk, complex) in buffer
+            .chunks_exact(2)
             .zip(self.complex_buffer.iter_mut())
         {
-            *complex = Complex::new(*sample, 0.0);
+            let mono = (chunk[0] + chunk[1]) * 0.5;
+            *complex = Complex::new(mono, 0.0);
         }
 
         self.fft_processor.process(&mut self.complex_buffer);
 
-        // Convert to magnitudes, scaled for display (0–100 range)
+        // Convert to magnitudes and map to 32 bands exponentially (log-like spacing)
         let mut fft_data = self.fft_data.lock().unwrap_or_else(|e| e.into_inner());
-        for (mag, complex) in fft_data.iter_mut().zip(self.complex_buffer[..32].iter()) {
-            *mag = (complex.norm() * 100.0).min(100.0);
+        let mut bin_low = 1; // start from bin 1 to skip DC offset
+
+        for i in 0..32 {
+            // Exponential mapping of bins from 1 to 256 (FFT_SIZE / 2)
+            let next_index = 1.0 + ((i + 1) as f32 / 32.0).powf(1.8) * 255.0;
+            let mut bin_high = next_index.round() as usize;
+
+            if bin_high <= bin_low {
+                bin_high = bin_low + 1;
+            }
+            bin_high = bin_high.min(FFT_SIZE / 2);
+
+            let mut max_val = 0.0f32;
+            let mut sum_val = 0.0f32;
+            let count = bin_high - bin_low;
+
+            for bin in bin_low..bin_high {
+                let mag = self.complex_buffer[bin].norm();
+                max_val = max_val.max(mag);
+                sum_val += mag;
+            }
+
+            let avg_val = sum_val / count as f32;
+            // Blend peak and average for visually appealing and responsive bars
+            let val = (avg_val * 0.3 + max_val * 0.7) * 150.0;
+
+            fft_data[i] = val.min(100.0);
+
+            bin_low = bin_high;
         }
     }
 }

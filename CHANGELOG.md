@@ -5,6 +5,28 @@ All notable changes to FXSound Linux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.0.3] - 2026-06-24
+
+### Fixed
+- Fixed visualizer audio synchronization by mixing interleaved stereo output to mono.
+- Replaced linear bin indexing with logarithmic/exponential mapping covering the full 20Hz-20kHz audible spectrum.
+- Re-aligned visualizer bars responsiveness for a smoother, beat-accurate representation.
+
+### Changed
+- Increased Web Audio fallback visualizer `fftSize` to `1024` for higher resolution and identical exponential bar mapping in browser view.
+- Captured updated screenshots for Equalizer and Effects tabs representing the authentic theme.
+
+## [1.0.2] - 2026-06-24
+
+### Added
+- Authentic FXSound dark theme and true black Windows-matching design tokens.
+- Filled EQ region visual feedback showing boost/cut curve.
+- Red visualizer gradient bars with reflections and baseline.
+
+### Fixed
+- Fixed duplicate keydown handlers, Home/End key assignments, and CSP font-blocking issues.
+
 ## [1.0.0] - 2026-03-04
 
 ### Added

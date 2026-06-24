@@ -160,7 +160,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 const actx = new (window.AudioContext || window.webkitAudioContext)();
                 const src = actx.createMediaStreamSource(stream);
                 const analyser = actx.createAnalyser();
-                analyser.fftSize = 64;
+                analyser.fftSize = 1024;
                 analyser.smoothingTimeConstant = 0.75;
                 src.connect(analyser);
                 audioCtxRef.current = actx;
@@ -203,13 +203,37 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 function readAnalyser() {
                     if (cancelled || !analyserRef.current) return;
                     analyserRef.current.getByteFrequencyData(freqData);
-                    const ratio = freqData.length / BAR_COUNT;
                     const tgt = targetData.current;
+                    let binLow = 1; // start from bin 1 to skip DC offset
+                    const totalBins = freqData.length; // 512
+
                     for (let i = 0; i < BAR_COUNT; i++) {
-                        const si = Math.floor(i * ratio);
-                        const ni = Math.min(si + 1, freqData.length - 1);
-                        const f = (i * ratio) - si;
-                        tgt[i] = ((freqData[si] * (1 - f) + freqData[ni] * f) / 255) * 100;
+                        // Exponential mapping of bins from 1 to 512
+                        const nextIndex = 1.0 + Math.pow((i + 1) / BAR_COUNT, 1.8) * (totalBins - 1);
+                        let binHigh = Math.round(nextIndex);
+
+                        if (binHigh <= binLow) {
+                            binHigh = binLow + 1;
+                        }
+                        binHigh = Math.min(binHigh, totalBins);
+
+                        let maxVal = 0;
+                        let sumVal = 0;
+                        const count = binHigh - binLow;
+
+                        for (let bin = binLow; bin < binHigh; bin++) {
+                            const val = freqData[bin];
+                            if (val > maxVal) maxVal = val;
+                            sumVal += val;
+                        }
+
+                        const avgVal = sumVal / count;
+                        // Blend average (30%) and peak (70%), normalized to 0-100
+                        const normalized = ((avgVal * 0.3 + maxVal * 0.7) / 255) * 100;
+
+                        tgt[i] = normalized;
+
+                        binLow = binHigh;
                     }
                     requestAnimationFrame(readAnalyser);
                 }

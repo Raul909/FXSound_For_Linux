@@ -5,7 +5,7 @@ echo "🔍 FXSound Linux - Version Verification"
 echo "========================================"
 echo ""
 
-EXPECTED_VERSION="1.0.0"
+EXPECTED_VERSION="1.0.3"
 ERRORS=0
 
 # Check package.json
