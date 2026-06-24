@@ -71,9 +71,9 @@ FXSound is a popular Windows audio enhancer — but it has **no Linux version**.
 The simplest way to run FXSound on any Linux distribution:
 
 ```bash
-wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.AppImage
-chmod +x fxsound-linux_1.0.0_amd64.AppImage
-./fxsound-linux_1.0.0_amd64.AppImage
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.2_amd64.AppImage
+chmod +x fxsound-linux_1.0.2_amd64.AppImage
+./fxsound-linux_1.0.2_amd64.AppImage
 ```
 
 > **Tip:** If you get a "Permission denied" error, make sure you've run `chmod +x` on the file.
@@ -81,8 +81,8 @@ chmod +x fxsound-linux_1.0.0_amd64.AppImage
 ### Debian / Ubuntu / Pop!_OS / Mint
 
 ```bash
-wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.0_amd64.deb
-sudo dpkg -i fxsound-linux_1.0.0_amd64.deb
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.2_amd64.deb
+sudo dpkg -i fxsound-linux_1.0.2_amd64.deb
 # If you get dependency errors:
 sudo apt-get install -f
 ```
@@ -90,8 +90,8 @@ sudo apt-get install -f
 ### Fedora / RHEL / openSUSE
 
 ```bash
-wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.0-1.x86_64.rpm
-sudo rpm -i fxsound-linux-1.0.0-1.x86_64.rpm
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.2-1.x86_64.rpm
+sudo rpm -i fxsound-linux-1.0.2-1.x86_64.rpm
 ```
 
 ### Snap
