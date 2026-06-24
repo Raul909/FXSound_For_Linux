@@ -375,8 +375,8 @@ select option {
 
 .eq-band__track:focus-visible {
   outline: none;
-  border-color: rgba(230, 52, 98, 0.6);
-  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .eq-band__center-line {
@@ -462,8 +462,8 @@ select option {
 
 .effect-slider__track:focus-visible {
   outline: none;
-  border-color: rgba(230, 52, 98, 0.6);
-  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .effect-slider__fill {
