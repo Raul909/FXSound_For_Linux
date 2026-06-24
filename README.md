@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/screenshots/screenshot-eq.png" width="800" alt="FXSound Linux Equalizer">
+  <img src="./public/screenshots/promo-graphic.png" width="100%" alt="FXSound for Linux - Promo">
 
   <h1>FXSound for Linux</h1>
   <p>A free, open-source audio enhancer for Linux — 10-band EQ, effects, presets, and real-time audio visualization.</p>
@@ -19,6 +19,21 @@
   <p>
     <a href="https://github.com/Raul909/FXSound_For_Linux/releases/latest">Download AppImage / .deb / .rpm</a>
   </p>
+</div>
+
+---
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><b>10-Band Equalizer</b></td>
+      <td align="center"><b>Studio Effects</b></td>
+    </tr>
+    <tr>
+      <td><img src="./public/screenshots/screenshot-eq.png" width="100%" alt="FXSound Linux Equalizer"></td>
+      <td><img src="./public/screenshots/screenshot-effects.png" width="100%" alt="FXSound Linux Effects"></td>
+    </tr>
+  </table>
 </div>
 
 ---
