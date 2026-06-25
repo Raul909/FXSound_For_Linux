@@ -200,22 +200,31 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
 
             if (await tryWebAudio()) {
                 const freqData = new Uint8Array(analyserRef.current.frequencyBinCount);
+                const totalBins = freqData.length; // 512
+
+                // Precompute FFT bin boundaries to avoid running Math.pow every frame
+                const binBoundaries = new Uint16Array(BAR_COUNT + 1);
+                binBoundaries[0] = 1;
+                let currentLow = 1;
+                for (let i = 0; i < BAR_COUNT; i++) {
+                    const nextIndex = 1.0 + Math.pow((i + 1) / BAR_COUNT, 1.8) * (totalBins - 1);
+                    let binHigh = Math.round(nextIndex);
+                    if (binHigh <= currentLow) {
+                        binHigh = currentLow + 1;
+                    }
+                    binHigh = Math.min(binHigh, totalBins);
+                    binBoundaries[i + 1] = binHigh;
+                    currentLow = binHigh;
+                }
+
                 function readAnalyser() {
                     if (cancelled || !analyserRef.current) return;
                     analyserRef.current.getByteFrequencyData(freqData);
                     const tgt = targetData.current;
-                    let binLow = 1; // start from bin 1 to skip DC offset
-                    const totalBins = freqData.length; // 512
 
                     for (let i = 0; i < BAR_COUNT; i++) {
-                        // Exponential mapping of bins from 1 to 512
-                        const nextIndex = 1.0 + Math.pow((i + 1) / BAR_COUNT, 1.8) * (totalBins - 1);
-                        let binHigh = Math.round(nextIndex);
-
-                        if (binHigh <= binLow) {
-                            binHigh = binLow + 1;
-                        }
-                        binHigh = Math.min(binHigh, totalBins);
+                        const binLow = binBoundaries[i];
+                        const binHigh = binBoundaries[i + 1];
 
                         let maxVal = 0;
                         let sumVal = 0;
@@ -232,8 +241,6 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                         const normalized = ((avgVal * 0.3 + maxVal * 0.7) / 255) * 100;
 
                         tgt[i] = normalized;
-
-                        binLow = binHigh;
                     }
                     requestAnimationFrame(readAnalyser);
                 }

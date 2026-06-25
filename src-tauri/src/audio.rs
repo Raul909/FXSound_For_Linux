@@ -131,6 +131,9 @@ pub struct AudioEngine {
 
     /// FFT magnitude data shared with the UI for the visualizer.
     pub fft_data: Arc<std::sync::Mutex<Vec<f32>>>,
+
+    /// Precomputed FFT bin boundaries for mapping to 32 visualizer bars.
+    fft_bin_boundaries: [usize; 33],
 }
 
 impl AudioEngine {
@@ -145,6 +148,20 @@ impl AudioEngine {
             .map(|_| BiquadFilter::flat())
             .collect();
 
+        let mut fft_bin_boundaries = [0usize; 33];
+        fft_bin_boundaries[0] = 1;
+        let mut bin_low = 1;
+        for i in 0..32 {
+            let next_index = 1.0 + ((i + 1) as f32 / 32.0).powf(1.8) * 255.0;
+            let mut bin_high = next_index.round() as usize;
+            if bin_high <= bin_low {
+                bin_high = bin_low + 1;
+            }
+            bin_high = bin_high.min(FFT_SIZE / 2);
+            fft_bin_boundaries[i + 1] = bin_high;
+            bin_low = bin_high;
+        }
+
         Self {
             fft_processor,
             complex_buffer,
@@ -154,6 +171,7 @@ impl AudioEngine {
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
+            fft_bin_boundaries,
         }
     }
 
@@ -352,17 +370,10 @@ impl AudioEngine {
 
         // Convert to magnitudes and map to 32 bands exponentially (log-like spacing)
         let mut fft_data = self.fft_data.lock().unwrap_or_else(|e| e.into_inner());
-        let mut bin_low = 1; // start from bin 1 to skip DC offset
 
         for i in 0..32 {
-            // Exponential mapping of bins from 1 to 256 (FFT_SIZE / 2)
-            let next_index = 1.0 + ((i + 1) as f32 / 32.0).powf(1.8) * 255.0;
-            let mut bin_high = next_index.round() as usize;
-
-            if bin_high <= bin_low {
-                bin_high = bin_low + 1;
-            }
-            bin_high = bin_high.min(FFT_SIZE / 2);
+            let bin_low = self.fft_bin_boundaries[i];
+            let bin_high = self.fft_bin_boundaries[i + 1];
 
             let mut max_val = 0.0f32;
             let mut sum_val = 0.0f32;
@@ -379,8 +390,6 @@ impl AudioEngine {
             let val = (avg_val * 0.3 + max_val * 0.7) * 150.0;
 
             fft_data[i] = val.min(100.0);
-
-            bin_low = bin_high;
         }
     }
 }
