@@ -148,6 +148,7 @@ export default function App() {
               className={`power-btn ${powered ? "power-btn--on" : "power-btn--off"}`}
               onClick={() => setPowered((prev) => !prev)}
               aria-label="Toggle Power"
+              title={powered ? "Turn Power Off" : "Turn Power On"}
               aria-pressed={powered}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill={powered ? "#fff" : "#555"}>
@@ -189,13 +190,17 @@ export default function App() {
         <Visualizer powered={powered} />
 
         {/* ---- Tab Buttons ---- */}
-        <div className="tabs">
+        <div className="tabs" role="tablist" aria-label="Settings pages">
           {[
             { id: "eq", label: "EQUALIZER" },
             { id: "fx", label: "EFFECTS" },
           ].map(({ id, label }) => (
             <button
               key={id}
+              id={`tab-${id}`}
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={`panel-${id}`}
               className={`tabs__btn ${tab === id ? "tabs__btn--active" : ""}`}
               onClick={() => setTab(id)}
             >
@@ -214,7 +219,7 @@ export default function App() {
         >
           {/* Equalizer Tab */}
           {tab === "eq" && (
-            <>
+            <div id="panel-eq" role="tabpanel" aria-labelledby="tab-eq">
               <div className="eq-panel">
                 {EQ_BANDS.map((freq, index) => (
                   <EQBandWrapper
@@ -232,12 +237,12 @@ export default function App() {
                 <span className="eq-footer__title">10-Band Parametric EQ</span>
                 <span className="eq-footer__label">+12 dB</span>
               </div>
-            </>
+            </div>
           )}
 
           {/* Effects Tab */}
           {tab === "fx" && (
-            <div className="fx-panel">
+            <div id="panel-fx" role="tabpanel" aria-labelledby="tab-fx" className="fx-panel">
               {effectSliders.map(({ label, key }) => (
                 <EffectSliderWrapper
                   key={key}
