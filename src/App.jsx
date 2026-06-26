@@ -163,14 +163,14 @@ export default function App() {
           <div className="header__dropdowns">
             {dropdowns.map(({ label, value: val, options, onChange, showCustom }) => (
               <div key={label} className="dropdown">
-                <div id={`dropdown-label-${label.replace(/\\s+/g, "-")}`} className="dropdown__label">{label}</div>
+                <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
                 <div className="dropdown__wrapper">
                   <select
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
                     className="dropdown__select"
-                    aria-labelledby={`dropdown-label-${label.replace(/\\s+/g, "-")}`}
+                    aria-labelledby={`dropdown-label-${label.replace(/\s+/g, "-")}`}
                   >
                     {options.map((opt) => (
                       <option key={opt}>{opt}</option>
