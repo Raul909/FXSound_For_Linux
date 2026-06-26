@@ -42,6 +42,29 @@ fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), 
     Ok(())
 }
 
+/// Apply a full preset state (EQ bands + effects) in one batch to avoid IPC overhead.
+#[tauri::command]
+fn apply_preset_state(
+    state: State<AppState>,
+    eq_bands: Vec<f32>,
+    effects: std::collections::HashMap<String, f32>,
+) -> Result<(), String> {
+    let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
+
+    for (band, &gain) in eq_bands.iter().enumerate() {
+        if gain.is_finite() {
+            engine.set_eq_band(band, gain);
+        }
+    }
+
+    for (effect, &value) in effects.iter() {
+        if value.is_finite() && effect.len() <= 32 {
+            engine.set_effect(effect, value);
+        }
+    }
+    Ok(())
+}
+
 /// Toggle audio processing on or off.
 #[tauri::command]
 fn set_power(state: State<AppState>, enabled: bool) -> Result<(), String> {
@@ -97,6 +120,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_eq_band,
             set_effect,
+            apply_preset_state,
             set_power,
             get_audio_devices,
             get_visualizer_data,
