@@ -234,7 +234,8 @@ impl AudioEngine {
 
         // Skip near-silent input to avoid amplifying noise
         let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        if rms.sqrt() < 0.001 {
+        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
+        if rms < 0.000001 {
             output.fill(0.0);
             return;
         }
@@ -324,7 +325,10 @@ impl AudioEngine {
 
             // Fidelity: subtle high-frequency harmonic enhancement
             if apply_fidelity {
-                let saturated = (s.abs() * fidelity_sat).tanh() * s.signum();
+                // Optimization: tanh is an odd function (tanh(-x) = -tanh(x)),
+                // so (s * k).tanh() is mathematically identical to (s.abs() * k).tanh() * s.signum()
+                // Removing abs() and signum() saves CPU cycles per sample.
+                let saturated = (s * fidelity_sat).tanh();
                 s = s * fidelity_dry + saturated * fidelity_mix;
             }
 
