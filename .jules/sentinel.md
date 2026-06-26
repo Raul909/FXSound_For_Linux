@@ -7,3 +7,7 @@
 **Vulnerability:** The backend Tauri commands `set_eq_band` and `set_effect` receive `f32` numbers and a `String` directly from the frontend without validation. A malicious or buggy frontend could send `NaN` as `gain`, causing Biquad filter coefficient calculations (`10.0f32.powf(NaN)`) to output `NaN`, permanently silencing the application. Additionally, an unbounded string could cause excessive memory allocation, or contain CRLF for log injection.
 **Learning:** Never trust frontend data implicitly, even if it's "just the local UI". Data types like `f32` can carry invalid states (`NaN`, `Infinity`) that propagate through math operations and cause silent, unrecoverable failures.
 **Prevention:** Always validate floating point numbers using `.is_finite()` immediately upon entry at the RPC/IPC boundary. Enforce strict length limits and character constraints on strings, especially if used as map keys or in logging.
+## 2024-06-26 - Prevent Unbounded Memory Growth in Tauri IPC
+**Vulnerability:** Missing input validation on Tauri command `set_effect` allowed arbitrary strings to be added to a backend `HashMap`, leading to potential Denial of Service (DoS) via unbounded memory growth.
+**Learning:** Inputs passed from the frontend to the backend via Tauri IPC (`invoke`) are untrusted and must be validated. Inserting unvalidated keys directly into a persistent state `HashMap` allows memory exhaustion attacks.
+**Prevention:** Always strictly validate dynamic keys (like effect names) against an allowlist on the backend before storing them in state.
