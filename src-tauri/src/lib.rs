@@ -34,9 +34,13 @@ fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), 
     if !value.is_finite() {
         return Err("Invalid effect value".to_string());
     }
-    if effect.len() > 32 {
-        return Err("Effect name too long".to_string());
+
+    // Validate effect name against an allowlist to prevent memory exhaustion (DoS)
+    let valid_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+    if !valid_effects.contains(&effect.as_str()) {
+        return Err("Invalid effect name".to_string());
     }
+
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_effect(&effect, value);
     Ok(())
