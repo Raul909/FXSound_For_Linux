@@ -60,15 +60,11 @@ export default function App() {
     setEq([...PRESET_EQ[name]]);
     setFx({ ...PRESET_FX[name] });
 
-    // Send all EQ band values to backend
-    PRESET_EQ[name].forEach((gain, index) => {
-      invoke("set_eq_band", { band: index, gain }).catch(console.error);
-    });
-
-    // Send all effect values to backend
-    Object.entries(PRESET_FX[name]).forEach(([key, value]) => {
-      invoke("set_effect", { effect: key, value }).catch(console.error);
-    });
+    // Send all EQ band values and effect values to backend in one batch
+    invoke("apply_preset_state", {
+      eqBands: PRESET_EQ[name],
+      effects: PRESET_FX[name]
+    }).catch(console.error);
   }, []);
 
   // Sync power state to the Rust backend whenever it changes
