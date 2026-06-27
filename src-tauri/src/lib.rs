@@ -61,8 +61,9 @@ fn apply_preset_state(
         }
     }
 
+    let valid_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
     for (effect, &value) in effects.iter() {
-        if value.is_finite() && effect.len() <= 32 {
+        if value.is_finite() && valid_effects.contains(&effect.as_str()) {
             engine.set_effect(effect, value);
         }
     }
