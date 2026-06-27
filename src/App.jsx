@@ -166,6 +166,7 @@ export default function App() {
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
                     className="dropdown__select"
+                    title={!powered ? "Power on to adjust" : undefined}
                     aria-labelledby={`dropdown-label-${label.replace(/\s+/g, "-")}`}
                   >
                     {options.map((opt) => (
