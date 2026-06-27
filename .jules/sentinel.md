@@ -11,3 +11,7 @@
 **Vulnerability:** Missing input validation on Tauri command `set_effect` allowed arbitrary strings to be added to a backend `HashMap`, leading to potential Denial of Service (DoS) via unbounded memory growth.
 **Learning:** Inputs passed from the frontend to the backend via Tauri IPC (`invoke`) are untrusted and must be validated. Inserting unvalidated keys directly into a persistent state `HashMap` allows memory exhaustion attacks.
 **Prevention:** Always strictly validate dynamic keys (like effect names) against an allowlist on the backend before storing them in state.
+## 2024-05-15 - Unbounded HashMap Growth in Bulk-Update Endpoints
+**Vulnerability:** A Tauri command (`apply_preset_state`) accepting a `HashMap` of configuration values validated the *size* of the keys, but not their *contents* against an allowlist, unlike the single-item update endpoint (`set_effect`). This allowed an unbounded number of keys to be injected, leading to a memory exhaustion Denial of Service (DoS) vulnerability.
+**Learning:** Bulk-update endpoints or batch commands often miss the strict validation applied to their single-item counterparts. It's critical to ensure identical validation logic is applied to bulk inputs to prevent resource exhaustion attacks.
+**Prevention:** Ensure that bulk APIs map inputs to the same rigorous validation checks as single-item APIs. Use allowlists for dictionary keys when they correspond to a fixed set of fields.
