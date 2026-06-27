@@ -74,11 +74,20 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
         const target = targetData.current;
         const display = displayData.current;
 
+        let needsDraw = false;
+
         // Interpolate display toward target
         for (let i = 0; i < BAR_COUNT; i++) {
             const t = target[i] || (isPowered ? 0 : 2);
             const speed = t > display[i] ? 14 : 5;
             display[i] += (t - display[i]) * Math.min(speed * dt, 1);
+            if (Math.abs(display[i] - t) > 0.1) {
+                needsDraw = true;
+            }
+        }
+
+        if (!isPowered && !needsDraw) {
+            return; // Skip rendering when bypassed and bars have settled
         }
 
         ctx.clearRect(0, 0, w, h);
@@ -176,6 +185,10 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 // Use recursive setTimeout instead of setInterval to prevent overlapping async calls
                 function pollBackend() {
                     if (cancelled) return;
+                    if (!poweredRef.current) {
+                        pollTimeout = setTimeout(pollBackend, 50);
+                        return;
+                    }
                     invoke("get_visualizer_data")
                         .then((data) => {
                             const src = targetData.current;
@@ -219,6 +232,10 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
 
                 function readAnalyser() {
                     if (cancelled || !analyserRef.current) return;
+                    if (!poweredRef.current) {
+                        requestAnimationFrame(readAnalyser);
+                        return;
+                    }
                     analyserRef.current.getByteFrequencyData(freqData);
                     const tgt = targetData.current;
 
@@ -253,10 +270,12 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             function idleAnimation() {
                 if (cancelled) return;
                 phase += 0.08;
-                const tgt = targetData.current;
-                for (let i = 0; i < BAR_COUNT; i++) {
-                    tgt[i] = (Math.sin(phase + i * 0.3) * 0.5 + 0.5 +
-                               Math.sin(phase * 1.3 + i * 0.2) * 0.3 + 0.3) * 35 + 5;
+                if (poweredRef.current) {
+                    const tgt = targetData.current;
+                    for (let i = 0; i < BAR_COUNT; i++) {
+                        tgt[i] = (Math.sin(phase + i * 0.3) * 0.5 + 0.5 +
+                                   Math.sin(phase * 1.3 + i * 0.2) * 0.3 + 0.3) * 35 + 5;
+                    }
                 }
                 pollTimeout = setTimeout(idleAnimation, 50);
             }
