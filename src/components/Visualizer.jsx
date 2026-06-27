@@ -23,6 +23,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
     const analyserRef = useRef(null);
     const streamRef = useRef(null);
     const poweredRef = useRef(powered);
+    const lastPoweredRef = useRef(powered);
     // Cache the CanvasGradient to avoid recreating it every frame
     const gradientCacheRef = useRef(null);
     const lastCanvasWidthRef = useRef(0);
@@ -89,6 +90,8 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
         if (!isPowered && !needsDraw) {
             return; // Skip rendering when bypassed and bars have settled
         }
+
+        if (!needsDraw) return; // Skip clear and draw if nothing changed
 
         ctx.clearRect(0, 0, w, h);
 
