@@ -101,6 +101,7 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
                 onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
+                title={disabled ? "Power on to adjust" : undefined}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
@@ -129,7 +130,7 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
             </div>
 
             {/* Current numeric value */}
-            <span className="effect-slider__value">{value}</span>
+            <span className="effect-slider__value" aria-hidden="true">{value}</span>
         </div>
     );
 });
