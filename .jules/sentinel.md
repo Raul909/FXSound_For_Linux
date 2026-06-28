@@ -1,17 +1,4 @@
-## 2026-05-12 - Fix Mutex Poisoning Denial of Service (DoS)
-**Vulnerability:** Mutex locks in Tauri command handlers and audio engine use `.unwrap()` or `.map_err(|e| e.to_string())?`. If a thread panics while holding the lock, the mutex becomes permanently "poisoned", causing all subsequent lock attempts to fail, resulting in an unrecoverable Denial of Service (DoS) requiring a restart.
-**Learning:** Rust's Mutex poisoning is a safety feature, but failing to clear it creates a permanent DoS state in long-running services. Panics in thread boundaries shouldn't permanently take down shared state.
-**Prevention:** Use `.unwrap_or_else(|e| e.into_inner())` on `Mutex::lock()` results to safely recover the lock guard and continue functioning even if the previous thread panicked.
-
-## 2026-05-13 - Fix NaN Propagation and Log Injection DoS
-**Vulnerability:** The backend Tauri commands `set_eq_band` and `set_effect` receive `f32` numbers and a `String` directly from the frontend without validation. A malicious or buggy frontend could send `NaN` as `gain`, causing Biquad filter coefficient calculations (`10.0f32.powf(NaN)`) to output `NaN`, permanently silencing the application. Additionally, an unbounded string could cause excessive memory allocation, or contain CRLF for log injection.
-**Learning:** Never trust frontend data implicitly, even if it's "just the local UI". Data types like `f32` can carry invalid states (`NaN`, `Infinity`) that propagate through math operations and cause silent, unrecoverable failures.
-**Prevention:** Always validate floating point numbers using `.is_finite()` immediately upon entry at the RPC/IPC boundary. Enforce strict length limits and character constraints on strings, especially if used as map keys or in logging.
-## 2024-06-26 - Prevent Unbounded Memory Growth in Tauri IPC
-**Vulnerability:** Missing input validation on Tauri command `set_effect` allowed arbitrary strings to be added to a backend `HashMap`, leading to potential Denial of Service (DoS) via unbounded memory growth.
-**Learning:** Inputs passed from the frontend to the backend via Tauri IPC (`invoke`) are untrusted and must be validated. Inserting unvalidated keys directly into a persistent state `HashMap` allows memory exhaustion attacks.
-**Prevention:** Always strictly validate dynamic keys (like effect names) against an allowlist on the backend before storing them in state.
-## 2024-05-15 - Unbounded HashMap Growth in Bulk-Update Endpoints
-**Vulnerability:** A Tauri command (`apply_preset_state`) accepting a `HashMap` of configuration values validated the *size* of the keys, but not their *contents* against an allowlist, unlike the single-item update endpoint (`set_effect`). This allowed an unbounded number of keys to be injected, leading to a memory exhaustion Denial of Service (DoS) vulnerability.
-**Learning:** Bulk-update endpoints or batch commands often miss the strict validation applied to their single-item counterparts. It's critical to ensure identical validation logic is applied to bulk inputs to prevent resource exhaustion attacks.
-**Prevention:** Ensure that bulk APIs map inputs to the same rigorous validation checks as single-item APIs. Use allowlists for dictionary keys when they correspond to a fixed set of fields.
+## 2024-05-18 - Prevent unbound memory allocation in Tauri IPC commands
+**Vulnerability:** The Tauri IPC command `apply_preset_state` accepted `Vec<f32>` and `HashMap<String, f32>`, allowing a malicious frontend to cause a Denial of Service via unbounded memory allocation (OOM).
+**Learning:** Even if the command body checks sizes, `serde_json` allocates memory for the entire unbounded array/map before the body runs.
+**Prevention:** Use fixed-size arrays (e.g., `[f32; 10]`) and strictly typed structs with `Option` fields (e.g., `PresetEffects`) instead of `Vec` and `HashMap` at the Tauri IPC boundary to ensure memory allocation is bounded during deserialization.
