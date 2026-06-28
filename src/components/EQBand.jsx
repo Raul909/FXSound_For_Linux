@@ -63,6 +63,13 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         }
     }
 
+    function handleDoubleClick() {
+        if (disabled) return;
+        if (value !== 0) {
+            onChange(0);
+        }
+    }
+
     // Handle drag interaction on the slider track
     // Caches getBoundingClientRect on mousedown to prevent layout thrashing
     function handleMouseDown(event) {
@@ -108,9 +115,10 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
                 onKeyDown={handleKeyDown}
+                onDoubleClick={handleDoubleClick}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? "Power on to adjust" : "Double-click to reset"}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-label={`${freq} Hz equalizer band`}
@@ -135,7 +143,7 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 />
 
                 {/* Dashed vertical guide line */}
-                <svg className="eq-band__guide" width="2" height="160">
+                <svg className="eq-band__guide" width="2" height="160" aria-hidden="true">
                     <line
                         x1="1" y1="0" x2="1" y2="160"
                         stroke="#e33250" strokeWidth="1"

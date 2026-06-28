@@ -63,6 +63,13 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         }
     }
 
+    function handleDoubleClick() {
+        if (disabled) return;
+        if (value !== 0) {
+            onChange(0);
+        }
+    }
+
     // Handle drag interaction on the slider track
     // Caches getBoundingClientRect on mousedown to prevent layout thrashing
     function handleMouseDown(event) {
@@ -99,9 +106,10 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
                 onKeyDown={handleKeyDown}
+                onDoubleClick={handleDoubleClick}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? "Power on to adjust" : "Double-click to reset"}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
