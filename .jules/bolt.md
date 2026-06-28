@@ -9,3 +9,7 @@
 ## 2024-06-27 - Visualizer Render Optimization
 **Learning:** In a canvas-based animation loop that runs continually (like an audio visualizer), simply adding an early return to bypass rendering can permanently kill the animation if the `requestAnimationFrame` call is located at the bottom of the function.
 **Action:** When adding an early return to an animation loop, ensure that the background polling or next frame request (`setTimeout` or `requestAnimationFrame`) is called *before* the return, so the loop can resume when the condition changes.
+
+## 2024-06-28 - Tab Unmounting Overhead
+**Learning:** In React, using logical && conditional rendering for heavy tab components (like 10 EQ bands with drag event bindings) causes complete DOM destruction and recreation on every tab switch, which creates layout thrashing overhead.
+**Action:** For frequently toggled heavyweight tabs, render all tabs but use CSS `display: undefined` / `none` to hide inactive panels instead of conditionally unmounting them from the tree.

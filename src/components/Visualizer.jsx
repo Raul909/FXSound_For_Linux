@@ -23,7 +23,6 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
     const analyserRef = useRef(null);
     const streamRef = useRef(null);
     const poweredRef = useRef(powered);
-    const lastPoweredRef = useRef(powered);
     // Cache the CanvasGradient to avoid recreating it every frame
     const gradientCacheRef = useRef(null);
     const lastCanvasWidthRef = useRef(0);
