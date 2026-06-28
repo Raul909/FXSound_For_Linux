@@ -374,10 +374,7 @@ impl AudioEngine {
         }
 
         // Mix interleaved stereo to mono into the complex buffer
-        for (chunk, complex) in buffer
-            .chunks_exact(2)
-            .zip(self.complex_buffer.iter_mut())
-        {
+        for (chunk, complex) in buffer.chunks_exact(2).zip(self.complex_buffer.iter_mut()) {
             let mono = (chunk[0] + chunk[1]) * 0.5;
             *complex = Complex::new(mono, 0.0);
         }

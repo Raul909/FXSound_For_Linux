@@ -46,12 +46,21 @@ fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), 
     Ok(())
 }
 
+#[derive(serde::Deserialize, Default)]
+pub struct PresetEffects {
+    fidelity: Option<f32>,
+    ambiance: Option<f32>,
+    dynamic: Option<f32>,
+    surround: Option<f32>,
+    bass: Option<f32>,
+}
+
 /// Apply a full preset state (EQ bands + effects) in one batch to avoid IPC overhead.
 #[tauri::command]
 fn apply_preset_state(
     state: State<AppState>,
-    eq_bands: Vec<f32>,
-    effects: std::collections::HashMap<String, f32>,
+    eq_bands: [f32; 10],
+    effects: PresetEffects,
 ) -> Result<(), String> {
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -61,10 +70,29 @@ fn apply_preset_state(
         }
     }
 
-    let valid_effects = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
-    for (effect, &value) in effects.iter() {
-        if value.is_finite() && valid_effects.contains(&effect.as_str()) {
-            engine.set_effect(effect, value);
+    if let Some(val) = effects.fidelity {
+        if val.is_finite() {
+            engine.set_effect("fidelity", val);
+        }
+    }
+    if let Some(val) = effects.ambiance {
+        if val.is_finite() {
+            engine.set_effect("ambiance", val);
+        }
+    }
+    if let Some(val) = effects.dynamic {
+        if val.is_finite() {
+            engine.set_effect("dynamic", val);
+        }
+    }
+    if let Some(val) = effects.surround {
+        if val.is_finite() {
+            engine.set_effect("surround", val);
+        }
+    }
+    if let Some(val) = effects.bass {
+        if val.is_finite() {
+            engine.set_effect("bass", val);
         }
     }
     Ok(())
