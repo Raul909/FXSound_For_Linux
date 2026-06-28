@@ -9,3 +9,6 @@
 ## 2024-06-27 - Visualizer Render Optimization
 **Learning:** In a canvas-based animation loop that runs continually (like an audio visualizer), simply adding an early return to bypass rendering can permanently kill the animation if the `requestAnimationFrame` call is located at the bottom of the function.
 **Action:** When adding an early return to an animation loop, ensure that the background polling or next frame request (`setTimeout` or `requestAnimationFrame`) is called *before* the return, so the loop can resume when the condition changes.
+## 2026-06-28 - Optimize Visualizer Rendering Loop
+**Learning:** In canvas-based animation loops using `requestAnimationFrame`, simple asymptotic interpolation (e.g., `val += (target - val) * speed`) will never mathematically reach the target, leading to continuous micro-updates and preventing the loop from resting. This wastes CPU/GPU cycles.
+**Action:** When interpolating values towards a target, always calculate the difference first. If the difference is below a small visual threshold (like `0.05`), snap the value exactly to the target to allow the rendering loop to pause.

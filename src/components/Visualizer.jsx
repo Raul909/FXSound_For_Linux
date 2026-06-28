@@ -23,7 +23,6 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
     const analyserRef = useRef(null);
     const streamRef = useRef(null);
     const poweredRef = useRef(powered);
-    const lastPoweredRef = useRef(powered);
     // Cache the CanvasGradient to avoid recreating it every frame
     const gradientCacheRef = useRef(null);
     const lastCanvasWidthRef = useRef(0);
@@ -80,9 +79,14 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
         // Interpolate display toward target
         for (let i = 0; i < BAR_COUNT; i++) {
             const t = target[i] || (isPowered ? 0 : 2);
-            const speed = t > display[i] ? 14 : 5;
-            display[i] += (t - display[i]) * Math.min(speed * dt, 1);
-            if (Math.abs(display[i] - t) > 0.1) {
+            const diff = t - display[i];
+
+            // Snap to target if very close to avoid infinite asymptotic calculations
+            if (Math.abs(diff) < 0.05) {
+                display[i] = t;
+            } else {
+                const speed = t > display[i] ? 14 : 5;
+                display[i] += diff * Math.min(speed * dt, 1);
                 needsDraw = true;
             }
         }
