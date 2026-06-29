@@ -72,15 +72,33 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         let lastValue = xToValueWithRect(event.clientX, rect);
         onChange(lastValue);
 
+        let rafId = null;
+        let latestClientX = event.clientX;
+
         function handleMouseMove(moveEvent) {
-            const newValue = xToValueWithRect(moveEvent.clientX, rect);
-            if (newValue !== lastValue) {
-                lastValue = newValue;
-                onChange(newValue);
+            latestClientX = moveEvent.clientX;
+            if (!rafId) {
+                rafId = requestAnimationFrame(() => {
+                    rafId = null;
+                    const newValue = xToValueWithRect(latestClientX, rect);
+                    if (newValue !== lastValue) {
+                        lastValue = newValue;
+                        onChange(newValue);
+                    }
+                });
             }
         }
 
         function handleMouseUp() {
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+                const newValue = xToValueWithRect(latestClientX, rect);
+                if (newValue !== lastValue) {
+                    lastValue = newValue;
+                    onChange(newValue);
+                }
+            }
             window.removeEventListener("mousemove", handleMouseMove);
             window.removeEventListener("mouseup", handleMouseUp);
         }
