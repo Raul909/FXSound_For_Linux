@@ -12,3 +12,9 @@
 ## 2026-06-28 - Optimize Visualizer Rendering Loop
 **Learning:** In canvas-based animation loops using `requestAnimationFrame`, simple asymptotic interpolation (e.g., `val += (target - val) * speed`) will never mathematically reach the target, leading to continuous micro-updates and preventing the loop from resting. This wastes CPU/GPU cycles.
 **Action:** When interpolating values towards a target, always calculate the difference first. If the difference is below a small visual threshold (like `0.05`), snap the value exactly to the target to allow the rendering loop to pause.
+## 2026-06-29 - Prevent React Render Loop Memory Allocations
+**Learning:** In highly dynamic components like audio visualizers running at 60fps, creating literal arrays or objects (e.g. ) inside loops or callbacks creates immense GC pressure (e.g. 1920 allocations/sec for 32 bars).
+**Action:** Hoist constant array literals to module-level scope and use lazy initialization for state (e.g. `useState(() => [...])`) to completely eliminate unnecessary allocations in hot paths.
+## 2026-06-29 - Prevent React Render Loop Memory Allocations
+**Learning:** In highly dynamic components like audio visualizers running at 60fps, creating literal arrays or objects (e.g. `[1, 1, 0, 0]`) inside loops or callbacks creates immense GC pressure (e.g. 1920 allocations/sec for 32 bars). Similarly, inline arrays in standard React components recreate object instances on every render.
+**Action:** Hoist constant array literals to module-level scope and use lazy initialization for state (e.g. `useState(() => [...])`) to completely eliminate unnecessary allocations in hot paths.

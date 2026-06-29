@@ -18,6 +18,11 @@ const EffectSliderWrapper = React.memo(function EffectSliderWrapper({ label, eff
   return <EffectSlider label={label} value={value} onChange={handleChange} disabled={disabled} />;
 });
 
+const TABS = [
+  { id: "eq", label: "EQUALIZER" },
+  { id: "fx", label: "EFFECTS" },
+];
+
 /**
  * Root application component for FXSound.
  *
@@ -27,8 +32,8 @@ const EffectSliderWrapper = React.memo(function EffectSliderWrapper({ label, eff
 export default function App() {
   const [powered, setPowered] = useState(true);
   const [preset, setPreset] = useState("Music");
-  const [eq, setEq] = useState([...PRESET_EQ["Music"]]);
-  const [fx, setFx] = useState({ ...PRESET_FX["Music"] });
+  const [eq, setEq] = useState(() => [...PRESET_EQ["Music"]]);
+  const [fx, setFx] = useState(() => ({ ...PRESET_FX["Music"] }));
   const [devices, setDevices] = useState(DEVICES);
   const [device, setDevice] = useState(DEVICES[0]);
   const [tab, setTab] = useState("eq");
@@ -188,10 +193,7 @@ export default function App() {
 
         {/* ---- Tab Buttons ---- */}
         <div className="tabs" role="tablist" aria-label="Settings pages">
-          {[
-            { id: "eq", label: "EQUALIZER" },
-            { id: "fx", label: "EFFECTS" },
-          ].map(({ id, label }) => (
+          {TABS.map(({ id, label }) => (
             <button
               key={id}
               id={`tab-${id}`}
