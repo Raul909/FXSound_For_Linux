@@ -307,7 +307,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
     }, [drawFrame, cleanupWebAudio]);
 
     return (
-        <div className="visualizer">
+        <div className="visualizer" aria-hidden="true">
             <canvas
                 ref={canvasRef}
                 width={456}
