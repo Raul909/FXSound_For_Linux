@@ -221,7 +221,7 @@ select option {
   border-color: var(--border-hover);
 }
 
-.dropdown__select:focus {
+.dropdown__select:focus-visible {
   border-color: rgba(230, 52, 98, 0.4);
   box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
 }
