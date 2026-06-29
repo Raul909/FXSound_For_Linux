@@ -72,15 +72,33 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
         let lastValue = yToGainWithRect(event.clientY, rect);
         onChange(lastValue);
 
+        let rafId = null;
+        let latestClientY = event.clientY;
+
         function handleMouseMove(moveEvent) {
-            const newValue = yToGainWithRect(moveEvent.clientY, rect);
-            if (newValue !== lastValue) {
-                lastValue = newValue;
-                onChange(newValue);
+            latestClientY = moveEvent.clientY;
+            if (!rafId) {
+                rafId = requestAnimationFrame(() => {
+                    rafId = null;
+                    const newValue = yToGainWithRect(latestClientY, rect);
+                    if (newValue !== lastValue) {
+                        lastValue = newValue;
+                        onChange(newValue);
+                    }
+                });
             }
         }
 
         function handleMouseUp() {
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+                const newValue = yToGainWithRect(latestClientY, rect);
+                if (newValue !== lastValue) {
+                    lastValue = newValue;
+                    onChange(newValue);
+                }
+            }
             window.removeEventListener("mousemove", handleMouseMove);
             window.removeEventListener("mouseup", handleMouseUp);
         }

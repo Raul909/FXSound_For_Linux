@@ -12,3 +12,7 @@
 ## 2026-06-28 - Optimize Visualizer Rendering Loop
 **Learning:** In canvas-based animation loops using `requestAnimationFrame`, simple asymptotic interpolation (e.g., `val += (target - val) * speed`) will never mathematically reach the target, leading to continuous micro-updates and preventing the loop from resting. This wastes CPU/GPU cycles.
 **Action:** When interpolating values towards a target, always calculate the difference first. If the difference is below a small visual threshold (like `0.05`), snap the value exactly to the target to allow the rendering loop to pause.
+
+## 2026-06-29 - Throttle mousemove with requestAnimationFrame
+**Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
+**Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
