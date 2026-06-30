@@ -16,3 +16,6 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+## 2026-06-30 - Optimize Silence Detection Loop
+**Learning:** In a hot audio loop, iterating a full buffer to calculate RMS for silence detection is an O(N) operation that always costs N multiplications. When checking if audio is active (which is the 99% case), it is faster to use a short-circuiting peak detection loop that returns as soon as the threshold is exceeded (O(1) in practice).
+**Action:** When determining if a buffer can be skipped (e.g. for silence), use short-circuit logic (like `.any()` or an early `break`) instead of calculating the exact average or RMS over the entire array.

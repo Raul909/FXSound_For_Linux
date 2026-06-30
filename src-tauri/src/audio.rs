@@ -232,11 +232,25 @@ impl AudioEngine {
             return;
         }
 
-        // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
+        // Skip near-silent input to avoid amplifying noise.
+        // Optimization: Short-circuit evaluation instead of full buffer RMS calculation.
+        // Non-silent audio will break this loop in 1-2 iterations, saving ~1024 ops per chunk.
+        let mut is_silent = true;
+        for &x in input {
+            if x.abs() > 0.001 {
+                is_silent = false;
+                break;
+            }
+        }
+
+        if is_silent {
             output.fill(0.0);
+
+            // Zero out FFT data so the UI visualizer drops to 0 during silence
+            if let Ok(mut data) = self.fft_data.lock() {
+                data.fill(0.0);
+            }
+
             return;
         }
 
