@@ -16,3 +16,6 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+## 2026-06-30 - Tauri Hot Loop Optimization
+**Learning:** In audio or other hot loops that run 60+ times per second, avoid using `HashMap` with string keys (or string allocation). `HashMap::get` and `String::to_string()` add overhead that is unnecessary when the domain of keys is known and small.
+**Action:** Replace `HashMap<String, T>` with explicit typed fields (e.g., `effect_fidelity: f32`) in the struct, and use a `match` statement to parse incoming string keys from the frontend IPC. This changes O(n) hashing into O(1) direct struct access.
