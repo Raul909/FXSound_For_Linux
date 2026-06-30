@@ -220,7 +220,6 @@ export default function App() {
           className="content"
           style={{
             opacity: powered ? 1 : 0.4,
-            pointerEvents: powered ? "auto" : "none",
           }}
         >
           {/* Equalizer Tab */}

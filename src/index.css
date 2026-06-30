@@ -227,7 +227,7 @@ select option {
 }
 
 .dropdown__select:disabled {
-  cursor: default;
+  cursor: not-allowed;
   color: var(--text-dim);
   opacity: 0.6;
 }
@@ -388,7 +388,7 @@ select option {
   transition: border-color 0.2s;
 }
 
-.eq-band__track:hover {
+.eq-band__track:not([aria-disabled="true"]):hover {
   border-color: var(--border-hover);
 }
 
@@ -418,7 +418,7 @@ select option {
   z-index: 1;
 }
 
-.eq-band__track:hover .eq-band__fill {
+.eq-band__track:not([aria-disabled="true"]):hover .eq-band__fill {
   opacity: 0.45;
 }
 
@@ -444,7 +444,7 @@ select option {
   transition: box-shadow 0.2s, transform 0.15s;
 }
 
-.eq-band__track:hover .eq-band__thumb {
+.eq-band__track:not([aria-disabled="true"]):hover .eq-band__thumb {
   box-shadow: 0 2px 12px rgba(230, 52, 98, 0.7), 0 0 0 3px rgba(230, 52, 98, 0.1);
   transform: translate(-50%, -50%) scale(1.15);
 }
@@ -490,7 +490,7 @@ select option {
   transition: border-color 0.2s;
 }
 
-.effect-slider:hover .effect-slider__track {
+.effect-slider:has(.effect-slider__track:not([aria-disabled="true"])):hover .effect-slider__track {
   border-color: var(--border-hover);
 }
 
@@ -520,7 +520,7 @@ select option {
   transition: box-shadow 0.2s, transform 0.15s;
 }
 
-.effect-slider:hover .effect-slider__thumb {
+.effect-slider:has(.effect-slider__track:not([aria-disabled="true"])):hover .effect-slider__thumb {
   box-shadow: 0 2px 14px rgba(230, 52, 98, 0.7), 0 0 0 3px rgba(230, 52, 98, 0.1);
   transform: translate(-50%, -50%) scale(1.15);
 }
