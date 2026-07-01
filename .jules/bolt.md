@@ -16,3 +16,7 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+
+## 2024-07-01 - Prevent DOM Thrashing on Tab Switches
+**Learning:** In complex React applications, completely unmounting heavy components (like the 15 sliders across two tabs in this codebase) during simple tab switches causes significant layout thrashing and Garbage Collection spikes. Conditional rendering (`{tab === 'eq' && <EqTab/>}`) is a React anti-pattern for frequently toggled heavy UI elements.
+**Action:** Use CSS `display: none` (`style={{ display: isActive ? "block" : "none" }}`) instead of conditional rendering for tabs that contain many DOM elements or complex interactive components, so the DOM tree is preserved across tab transitions.
