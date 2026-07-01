@@ -7,7 +7,6 @@
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
-use std::collections::HashMap;
 use std::sync::Arc;
 
 const SAMPLE_RATE: u32 = 48000;
@@ -109,12 +108,27 @@ impl BiquadFilter {
 }
 
 // ──────────────────────────────────────────────
+//  Effects Config
+// ──────────────────────────────────────────────
+// ⚡ Bolt: Using a fixed struct instead of a HashMap avoids costly String allocations
+// and hashing during the high-frequency audio processing loop, eliminating
+// a potential bottleneck and making the DSP pipeline deterministic.
+#[derive(Default, Clone, Debug)]
+pub struct EffectsConfig {
+    pub fidelity: f32,
+    pub ambiance: f32,
+    pub dynamic: f32,
+    pub surround: f32,
+    pub bass: f32,
+}
+
+// ──────────────────────────────────────────────
 //  Audio Engine
 // ──────────────────────────────────────────────
 
 /// Core audio processing state.
 ///
-/// Holds the EQ band gains, effect values, biquad filter instances,
+/// Holds the EQ band gains, effect configuration, biquad filter instances,
 /// and shared FFT data for the visualizer.
 pub struct AudioEngine {
     /// Cached FFT processor and buffer to avoid repeated allocations.
@@ -123,7 +137,7 @@ pub struct AudioEngine {
 
     powered: bool,
     eq_bands: [f32; 10],
-    effects: HashMap<String, f32>,
+    effects: EffectsConfig,
     sample_rate: u32,
 
     /// One biquad filter per EQ band — rebuilt when gain changes.
@@ -167,7 +181,7 @@ impl AudioEngine {
             complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
-            effects: HashMap::new(),
+            effects: EffectsConfig::default(),
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
@@ -200,7 +214,15 @@ impl AudioEngine {
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
         let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
+        // ⚡ Bolt: Fast match statement instead of HashMap insert avoids allocation
+        match effect {
+            "fidelity" => self.effects.fidelity = clamped,
+            "ambiance" => self.effects.ambiance = clamped,
+            "dynamic" => self.effects.dynamic = clamped,
+            "surround" => self.effects.surround = clamped,
+            "bass" => self.effects.bass = clamped,
+            _ => log::warn!("Unknown effect: {}", effect),
+        }
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
@@ -297,9 +319,10 @@ impl AudioEngine {
 
     /// Apply audio effects to the buffer.
     fn apply_effects(&self, buffer: &mut [f32]) {
-        let fidelity = self.effects.get("fidelity").copied().unwrap_or(0.0);
-        let dynamic = self.effects.get("dynamic").copied().unwrap_or(0.0);
-        let bass = self.effects.get("bass").copied().unwrap_or(0.0);
+        // ⚡ Bolt: Direct struct access ensures O(1) performance without hashing overhead
+        let fidelity = self.effects.fidelity;
+        let dynamic = self.effects.dynamic;
+        let bass = self.effects.bass;
 
         let apply_fidelity = fidelity > 0.0;
         let apply_dynamic = dynamic > 0.0;

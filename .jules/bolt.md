@@ -16,3 +16,6 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+## 2026-07-01 - Avoid HashMaps in DSP hot loops
+**Learning:** Using `HashMap<String, f32>` to store effect configurations in a real-time DSP (Digital Signal Processing) loop (like the `AudioEngine` processing chunked audio) introduces significant overhead due to string allocations during insert (`.to_string()`) and non-deterministic `O(1)` hashing during retrieval (`get("effect")`). This wastes CPU cycles in a latency-sensitive context.
+**Action:** Replace `HashMap` with strongly-typed `struct` fields when the keys are known in advance. Use a fixed struct and `match` statements for dynamic updates to eliminate heap allocations and make the DSP pipeline strictly deterministic.
