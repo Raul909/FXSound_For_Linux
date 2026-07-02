@@ -16,3 +16,7 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+
+## 2024-07-02 - Array Allocation in Animation Loops
+**Learning:** Hardcoding arrays directly in arguments within a tight `requestAnimationFrame` loop (e.g., passing `[1, 1, 0, 0]` to `ctx.roundRect` for 32 items every frame) leads to thousands of array allocations per second. This triggers excessive Garbage Collection (GC) pauses, causing visual stutter.
+**Action:** Always extract static object and array literals out of high-frequency loops (like animation frames or render functions) and store them as constants at the module/file level.
