@@ -16,3 +16,7 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+
+## 2026-06-30 - Continuous CSS Paint Optimization
+**Learning:** Infinite CSS animations directly modifying `box-shadow` on elements (like pulsing glow effects) are a major performance bottleneck because they force the browser to trigger CPU-bound repaint operations on every single frame, draining CPU/GPU resources and potentially causing the app to lag even when idle.
+**Action:** When adding continuous visual effects like glowing or pulsing, offload the work to the compositor (GPU) by attaching a static `box-shadow` to an absolutely positioned `::after` pseudo-element and animating its `opacity` or `transform` properties instead.

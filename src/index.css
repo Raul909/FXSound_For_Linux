@@ -40,21 +40,32 @@
 
 /* ---- Keyframes ---- */
 
+/*
+ * ⚡ Bolt Optimization:
+ * Animating opacity and transform instead of box-shadow allows the browser
+ * to offload the animation to the GPU (compositor), eliminating continuous
+ * CPU-bound repaints while the app is active.
+ */
+
 @keyframes pulseGlow {
   0%, 100% {
-    box-shadow: 0 0 18px rgba(230, 52, 98, 0.5), 0 4px 14px rgba(213, 21, 53, 0.3);
+    opacity: 0.5;
+    transform: scale(0.95);
   }
   50% {
-    box-shadow: 0 0 28px rgba(230, 52, 98, 0.7), 0 4px 20px rgba(213, 21, 53, 0.5);
+    opacity: 1;
+    transform: scale(1.05);
   }
 }
 
 @keyframes activeGlow {
   0%, 100% {
-    box-shadow: 0 0 6px rgba(40, 202, 66, 0.5);
+    opacity: 0.6;
+    transform: scale(0.9);
   }
   50% {
-    box-shadow: 0 0 12px rgba(40, 202, 66, 0.8);
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 
@@ -142,6 +153,7 @@ select option {
 }
 
 .power-btn {
+  position: relative;
   width: 46px;
   height: 46px;
   border-radius: 50%;
@@ -156,7 +168,20 @@ select option {
 .power-btn--on {
   background: radial-gradient(circle at 35% 30%, var(--accent-light), #c4122e);
   border: 2px solid rgba(230, 52, 98, 0.7);
+}
+
+.power-btn--on::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 28px rgba(230, 52, 98, 0.7), 0 4px 20px rgba(213, 21, 53, 0.5);
   animation: pulseGlow 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .power-btn--on:hover {
@@ -560,6 +585,7 @@ select option {
 }
 
 .status-bar__dot {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -569,7 +595,19 @@ select option {
 
 .status-bar__dot--active {
   background: var(--green);
+}
+
+.status-bar__dot--active::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(40, 202, 66, 0.8);
   animation: activeGlow 2s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .status-bar__text {
