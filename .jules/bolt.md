@@ -16,3 +16,7 @@
 ## 2026-06-29 - Throttle mousemove with requestAnimationFrame
 **Learning:** High-polling mice (up to 1000Hz) trigger `mousemove` events far faster than the browser can render them (usually 60-144Hz). When these events directly trigger React state updates or expensive operations (like Tauri IPC calls), it causes main-thread bottlenecking and excessive backend load.
 **Action:** Always throttle continuous UI events (like `mousemove` or `scroll`) using `requestAnimationFrame`. Cache the latest event coordinates and only process the update once per frame. Ensure to flush the final state on `mouseup`/`touchend` to not lose the last update.
+
+## 2026-10-27 - Object Allocation in RequestAnimationFrame Loops
+**Learning:** Passing array literals (e.g., `[3, 3, 0, 0]`) to Canvas API methods like `roundRect` inside a `requestAnimationFrame` loop creates new array objects every single frame (up to 144 times a second). When nested inside another loop (like drawing 32 visualizer bars), this causes thousands of short-lived object allocations per second, increasing Garbage Collection pressure and causing micro-stutters.
+**Action:** Extract array literals and other short-lived objects out of tight rendering loops into module-level constants or class variables to reuse the same memory reference.
