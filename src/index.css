@@ -20,8 +20,8 @@
   --border-hover: #252535;
   --border-glow:  #2a2a3a;
 
-  --text-dim:     #444;
-  --text-muted:   #777;
+  --text-dim:     #6b6b75;
+  --text-muted:   #8a8a95;
   --text-light:   #c5c5d0;
   --text-bright:  #e0e0e8;
 
@@ -190,6 +190,8 @@ select option {
 /* ---- Dropdown ---- */
 
 .dropdown__label {
+  display: block;
+  cursor: pointer;
   font-size: 9px;
   color: var(--text-dim);
   letter-spacing: 1.5px;
