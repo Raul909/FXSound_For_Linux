@@ -264,7 +264,7 @@ export default function App() {
         </div>
 
         {/* ---- Status Bar ---- */}
-        <div className="status-bar">
+        <div className="status-bar" role="status" aria-live="polite" aria-atomic="true">
           <div className="status-bar__indicator">
             <div className={`status-bar__dot ${powered ? "status-bar__dot--active" : ""}`} />
             <span className={`status-bar__text ${powered ? "status-bar__text--active" : ""}`}>
