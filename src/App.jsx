@@ -224,43 +224,54 @@ export default function App() {
           }}
         >
           {/* Equalizer Tab */}
-          {tab === "eq" && (
-            <div id="panel-eq" role="tabpanel" aria-labelledby="tab-eq">
-              <div className="eq-panel">
-                {EQ_BANDS.map((freq, index) => (
-                  <EQBandWrapper
-                    key={freq}
-                    freq={freq}
-                    index={index}
-                    value={eq[index]}
-                    updateEQBand={updateEQBand}
-                    disabled={!powered}
-                  />
-                ))}
-              </div>
-              <div className="eq-footer">
-                <span className="eq-footer__label">-12 dB</span>
-                <span className="eq-footer__title">10-Band Parametric EQ</span>
-                <span className="eq-footer__label">+12 dB</span>
-              </div>
-            </div>
-          )}
-
-          {/* Effects Tab */}
-          {tab === "fx" && (
-            <div id="panel-fx" role="tabpanel" aria-labelledby="tab-fx" className="fx-panel">
-              {effectSliders.map(({ label, key }) => (
-                <EffectSliderWrapper
-                  key={key}
-                  label={label}
-                  effectKey={key}
-                  value={fx[key]}
-                  updateEffect={updateEffect}
+          {/* ⚡ Bolt Optimization: Using CSS display toggling instead of conditional rendering to prevent
+              costly unmount/remount cycles of the 10-band EQ and sliders. Eliminates DOM thrashing and
+              preserves React.memo optimizations on child components during tab switches. */}
+          <div
+            id="panel-eq"
+            role="tabpanel"
+            aria-labelledby="tab-eq"
+            style={{ display: tab === "eq" ? "" : "none" }}
+          >
+            <div className="eq-panel">
+              {EQ_BANDS.map((freq, index) => (
+                <EQBandWrapper
+                  key={freq}
+                  freq={freq}
+                  index={index}
+                  value={eq[index]}
+                  updateEQBand={updateEQBand}
                   disabled={!powered}
                 />
               ))}
             </div>
-          )}
+            <div className="eq-footer">
+              <span className="eq-footer__label">-12 dB</span>
+              <span className="eq-footer__title">10-Band Parametric EQ</span>
+              <span className="eq-footer__label">+12 dB</span>
+            </div>
+          </div>
+
+          {/* Effects Tab */}
+          {/* ⚡ Bolt Optimization: Using CSS display toggling instead of conditional rendering. */}
+          <div
+            id="panel-fx"
+            role="tabpanel"
+            aria-labelledby="tab-fx"
+            className="fx-panel"
+            style={{ display: tab === "fx" ? "" : "none" }}
+          >
+            {effectSliders.map(({ label, key }) => (
+              <EffectSliderWrapper
+                key={key}
+                label={label}
+                effectKey={key}
+                value={fx[key]}
+                updateEffect={updateEffect}
+                disabled={!powered}
+              />
+            ))}
+          </div>
         </div>
 
         {/* ---- Status Bar ---- */}
