@@ -232,10 +232,11 @@ impl AudioEngine {
             return;
         }
 
-        // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
+        // Skip near-silent input to avoid amplifying noise.
+        // Optimization: Early exit if any sample is loud enough, instead of summing all samples.
+        // 0.001 squared is 0.000001.
+        let is_silent = !input.iter().any(|&x| x.abs() > 0.001);
+        if is_silent {
             output.fill(0.0);
             return;
         }
