@@ -4,6 +4,9 @@ import { invoke } from "@tauri-apps/api/core";
 const BAR_COUNT = 32;
 const CANVAS_HEIGHT = 120;
 
+const OFF_RADII = [1, 1, 0, 0];
+const ON_RADII = [3, 3, 0, 0];
+
 /**
  * Real-time audio spectrum visualizer (canvas-based).
  *
@@ -91,10 +94,6 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             }
         }
 
-        if (!isPowered && !needsDraw) {
-            return; // Skip rendering when bypassed and bars have settled
-        }
-
         if (!needsDraw) return; // Skip clear and draw if nothing changed
 
         ctx.clearRect(0, 0, w, h);
@@ -122,7 +121,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 ctx.fillStyle = "#1e1e2a";
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
-                ctx.roundRect(x, y, barW, barH, [1, 1, 0, 0]);
+                ctx.roundRect(x, y, barW, barH, OFF_RADII);
                 ctx.fill();
                 ctx.globalAlpha = 1;
                 continue;
@@ -133,7 +132,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             ctx.globalAlpha = 0.5 + intensity * 0.5;
             ctx.fillStyle = barGrad;
             ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+            ctx.roundRect(x, y, barW, barH, ON_RADII);
             ctx.fill();
 
             // Top glow highlight on taller bars
