@@ -233,9 +233,20 @@ impl AudioEngine {
         }
 
         // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
+        // Optimization: Short-circuit the calculation. Instead of computing the sum
+        // across the entire buffer, accumulate the sum of squares and break early
+        // if it exceeds the silence threshold, saving iterations when audio is playing.
+        let threshold = 0.000001 * input.len() as f32;
+        let mut sum_sq = 0.0;
+        let mut is_silent = true;
+        for &x in input {
+            sum_sq += x * x;
+            if sum_sq >= threshold {
+                is_silent = false;
+                break;
+            }
+        }
+        if is_silent {
             output.fill(0.0);
             return;
         }
