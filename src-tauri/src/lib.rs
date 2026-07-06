@@ -20,8 +20,11 @@ struct AppState {
 /// Set the gain (in dB) for a single EQ band.
 #[tauri::command]
 fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), String> {
-    if !gain.is_finite() {
+    if !gain.is_finite() || gain < -12.0 || gain > 12.0 {
         return Err("Invalid gain value".to_string());
+    }
+    if band >= 10 {
+        return Err("Invalid band index".to_string());
     }
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_eq_band(band, gain);
@@ -31,7 +34,7 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
 /// Set the intensity (0–100) for a named audio effect.
 #[tauri::command]
 fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), String> {
-    if !value.is_finite() {
+    if !value.is_finite() || value < 0.0 || value > 100.0 {
         return Err("Invalid effect value".to_string());
     }
 
@@ -65,33 +68,33 @@ fn apply_preset_state(
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
 
     for (band, &gain) in eq_bands.iter().enumerate() {
-        if gain.is_finite() {
+        if band < 10 && gain.is_finite() && gain >= -12.0 && gain <= 12.0 {
             engine.set_eq_band(band, gain);
         }
     }
 
     if let Some(val) = effects.fidelity {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("fidelity", val);
         }
     }
     if let Some(val) = effects.ambiance {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("ambiance", val);
         }
     }
     if let Some(val) = effects.dynamic {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("dynamic", val);
         }
     }
     if let Some(val) = effects.surround {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("surround", val);
         }
     }
     if let Some(val) = effects.bass {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("bass", val);
         }
     }
@@ -109,7 +112,10 @@ fn set_power(state: State<AppState>, enabled: bool) -> Result<(), String> {
 /// Return the list of available audio output devices by querying PulseAudio.
 #[tauri::command]
 fn get_audio_devices() -> Result<Vec<String>, String> {
-    audio::get_pulse_sinks().map_err(|e| format!("Failed to get audio devices: {}", e))
+    audio::get_pulse_sinks().map_err(|e| {
+        log::error!("Internal error querying audio devices: {}", e);
+        "Failed to retrieve audio devices".to_string()
+    })
 }
 
 /// Return the current FFT magnitude data for the visualizer (32 bins).
