@@ -190,6 +190,7 @@ select option {
 /* ---- Dropdown ---- */
 
 .dropdown__label {
+  display: block;
   font-size: 9px;
   color: var(--text-dim);
   letter-spacing: 1.5px;
@@ -222,8 +223,8 @@ select option {
 }
 
 .dropdown__select:focus-visible {
-  border-color: rgba(230, 52, 98, 0.4);
-  box-shadow: 0 0 0 2px rgba(230, 52, 98, 0.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .dropdown__select:disabled {
