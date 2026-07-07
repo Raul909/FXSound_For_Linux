@@ -224,43 +224,39 @@ export default function App() {
           }}
         >
           {/* Equalizer Tab */}
-          {tab === "eq" && (
-            <div id="panel-eq" role="tabpanel" aria-labelledby="tab-eq">
-              <div className="eq-panel">
-                {EQ_BANDS.map((freq, index) => (
-                  <EQBandWrapper
-                    key={freq}
-                    freq={freq}
-                    index={index}
-                    value={eq[index]}
-                    updateEQBand={updateEQBand}
-                    disabled={!powered}
-                  />
-                ))}
-              </div>
-              <div className="eq-footer">
-                <span className="eq-footer__label">-12 dB</span>
-                <span className="eq-footer__title">10-Band Parametric EQ</span>
-                <span className="eq-footer__label">+12 dB</span>
-              </div>
-            </div>
-          )}
-
-          {/* Effects Tab */}
-          {tab === "fx" && (
-            <div id="panel-fx" role="tabpanel" aria-labelledby="tab-fx" className="fx-panel">
-              {effectSliders.map(({ label, key }) => (
-                <EffectSliderWrapper
-                  key={key}
-                  label={label}
-                  effectKey={key}
-                  value={fx[key]}
-                  updateEffect={updateEffect}
+          <div id="panel-eq" role="tabpanel" aria-labelledby="tab-eq" style={{ display: tab === "eq" ? "block" : "none" }}>
+            <div className="eq-panel">
+              {EQ_BANDS.map((freq, index) => (
+                <EQBandWrapper
+                  key={freq}
+                  freq={freq}
+                  index={index}
+                  value={eq[index]}
+                  updateEQBand={updateEQBand}
                   disabled={!powered}
                 />
               ))}
             </div>
-          )}
+            <div className="eq-footer">
+              <span className="eq-footer__label">-12 dB</span>
+              <span className="eq-footer__title">10-Band Parametric EQ</span>
+              <span className="eq-footer__label">+12 dB</span>
+            </div>
+          </div>
+
+          {/* Effects Tab */}
+          <div id="panel-fx" role="tabpanel" aria-labelledby="tab-fx" className="fx-panel" style={{ display: tab === "fx" ? "block" : "none" }}>
+            {effectSliders.map(({ label, key }) => (
+              <EffectSliderWrapper
+                key={key}
+                label={label}
+                effectKey={key}
+                value={fx[key]}
+                updateEffect={updateEffect}
+                disabled={!powered}
+              />
+            ))}
+          </div>
         </div>
 
         {/* ---- Status Bar ---- */}
