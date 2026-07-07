@@ -227,7 +227,7 @@ select option {
 }
 
 .dropdown__select:disabled {
-  cursor: default;
+  cursor: not-allowed;
   color: var(--text-dim);
   opacity: 0.6;
 }

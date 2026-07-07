@@ -138,7 +138,7 @@ export default function App() {
       <div className="app-window">
 
         {/* ---- Header: Brand + Power Button + Dropdowns ---- */}
-        <div className="header">
+        <header className="header">
           <div className="header__left">
             <button
               className={`power-btn ${powered ? "power-btn--on" : "power-btn--off"}`}
@@ -181,7 +181,7 @@ export default function App() {
               </div>
             ))}
           </div>
-        </div>
+        </header>
 
         {/* ---- Visualizer ---- */}
         <Visualizer powered={powered} />
@@ -216,7 +216,7 @@ export default function App() {
         </div>
 
         {/* ---- Tab Content ---- */}
-        <div
+        <main
           className="content"
           style={{
             opacity: powered ? 1 : 0.4,
@@ -261,10 +261,10 @@ export default function App() {
               ))}
             </div>
           )}
-        </div>
+        </main>
 
         {/* ---- Status Bar ---- */}
-        <div className="status-bar">
+        <footer className="status-bar" aria-live="polite">
           <div className="status-bar__indicator">
             <div className={`status-bar__dot ${powered ? "status-bar__dot--active" : ""}`} />
             <span className={`status-bar__text ${powered ? "status-bar__text--active" : ""}`}>
@@ -273,7 +273,7 @@ export default function App() {
           </div>
           <span className="status-bar__info">{shortDeviceName} · 48kHz</span>
           <span className="status-bar__preset">{preset.toUpperCase()}</span>
-        </div>
+        </footer>
 
       </div>
     </div>
