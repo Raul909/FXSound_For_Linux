@@ -20,8 +20,11 @@ struct AppState {
 /// Set the gain (in dB) for a single EQ band.
 #[tauri::command]
 fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), String> {
-    if !gain.is_finite() {
+    if !gain.is_finite() || gain < -12.0 || gain > 12.0 {
         return Err("Invalid gain value".to_string());
+    }
+    if band >= 10 {
+        return Err("Invalid band index".to_string());
     }
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_eq_band(band, gain);
@@ -31,7 +34,7 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
 /// Set the intensity (0–100) for a named audio effect.
 #[tauri::command]
 fn set_effect(state: State<AppState>, effect: String, value: f32) -> Result<(), String> {
-    if !value.is_finite() {
+    if !value.is_finite() || value < 0.0 || value > 100.0 {
         return Err("Invalid effect value".to_string());
     }
 
@@ -65,34 +68,48 @@ fn apply_preset_state(
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
 
     for (band, &gain) in eq_bands.iter().enumerate() {
-        if gain.is_finite() {
-            engine.set_eq_band(band, gain);
+        if gain.is_finite() && gain >= -12.0 && gain <= 12.0 {
+            if band < 10 {
+                engine.set_eq_band(band, gain);
+            }
+        } else {
+            return Err("Invalid gain value in preset".to_string());
         }
     }
 
     if let Some(val) = effects.fidelity {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("fidelity", val);
+        } else {
+            return Err("Invalid fidelity value in preset".to_string());
         }
     }
     if let Some(val) = effects.ambiance {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("ambiance", val);
+        } else {
+            return Err("Invalid ambiance value in preset".to_string());
         }
     }
     if let Some(val) = effects.dynamic {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("dynamic", val);
+        } else {
+            return Err("Invalid dynamic value in preset".to_string());
         }
     }
     if let Some(val) = effects.surround {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("surround", val);
+        } else {
+            return Err("Invalid surround value in preset".to_string());
         }
     }
     if let Some(val) = effects.bass {
-        if val.is_finite() {
+        if val.is_finite() && val >= 0.0 && val <= 100.0 {
             engine.set_effect("bass", val);
+        } else {
+            return Err("Invalid bass value in preset".to_string());
         }
     }
     Ok(())
