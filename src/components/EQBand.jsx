@@ -126,9 +126,10 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
                 onKeyDown={handleKeyDown}
+                onDoubleClick={() => !disabled && onChange(0)}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? "Power on to adjust" : "Double-click to reset to 0 dB"}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-label={`${freq} Hz equalizer band`}
