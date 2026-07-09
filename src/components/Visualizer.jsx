@@ -4,6 +4,10 @@ import { invoke } from "@tauri-apps/api/core";
 const BAR_COUNT = 32;
 const CANVAS_HEIGHT = 120;
 
+// Pre-allocate radiuses to avoid array allocations during requestAnimationFrame loops
+const ROUND_RADII_SMALL = [1, 1, 0, 0];
+const ROUND_RADII_LARGE = [3, 3, 0, 0];
+
 /**
  * Real-time audio spectrum visualizer (canvas-based).
  *
@@ -122,7 +126,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 ctx.fillStyle = "#1e1e2a";
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
-                ctx.roundRect(x, y, barW, barH, [1, 1, 0, 0]);
+                ctx.roundRect(x, y, barW, barH, ROUND_RADII_SMALL);
                 ctx.fill();
                 ctx.globalAlpha = 1;
                 continue;
@@ -133,7 +137,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             ctx.globalAlpha = 0.5 + intensity * 0.5;
             ctx.fillStyle = barGrad;
             ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+            ctx.roundRect(x, y, barW, barH, ROUND_RADII_LARGE);
             ctx.fill();
 
             // Top glow highlight on taller bars
