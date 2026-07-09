@@ -187,13 +187,97 @@
       font-size: 12px;
       color: #444;
     }
+
+    /* ── Hero CTA ── */
+    .hero__cta {
+      margin-top: 26px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero__btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 12px 26px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 1px solid #1e1e2a;
+      background: #0e0e12;
+      color: #c5c5d0;
+      transition: border-color 0.2s, transform 0.15s, background 0.2s;
+    }
+    .hero__btn:hover { transform: translateY(-2px); text-decoration: none; color: #fff; border-color: #e63462; }
+    .hero__btn--primary {
+      background: linear-gradient(135deg, #e63462, #a11d38);
+      border-color: #e63462;
+      color: #fff;
+    }
+
+    /* ── Screenshot showcase ── */
+    .showcase { padding: 10px 20px 30px; max-width: 780px; margin: 0 auto; }
+    .showcase__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      justify-items: center;
+    }
+    .showcase figure { width: 100%; max-width: 340px; }
+    .showcase img {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid #1e1e2a;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      display: block;
+    }
+    .showcase figcaption {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      margin-top: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── Community / open source ── */
+    .community {
+      padding: 60px 20px;
+      max-width: 700px;
+      margin: 0 auto;
+      border-top: 1px solid #1e1e2a;
+      text-align: center;
+    }
+    .community h2 { font-size: 22px; color: #fff; margin-bottom: 14px; }
+    .community p { color: #888; line-height: 1.7; max-width: 560px; margin: 0 auto 26px; }
+    .community__btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .community__btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid #1e1e2a;
+      background: #0e0e12;
+      color: #c5c5d0;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .community__btn:hover { border-color: #e63462; transform: translateY(-2px); text-decoration: none; color: #fff; }
+    .community__btn--star { border-color: rgba(230,52,98,0.4); background: linear-gradient(135deg,#16161d,#0e0e12); }
+    .community__note { margin-top: 22px; font-size: 12px; color: #555; }
   </style>
 </head>
 <body>
 
   <section class="hero">
     <div class="hero__logo"><span>FX</span>SOUND</div>
-    <p class="hero__tagline">A free, open-source audio enhancer for Linux — 10-band EQ, effects, presets, and real-time visualizer.</p>
+    <p class="hero__tagline">Bring the legendary FXSound experience to Linux — a free, open-source, <strong>system-wide</strong> audio enhancer. A 10-band EQ, five studio effects, 10 presets, and a real-time visualizer that process <em>all</em> your audio. No ads. No telemetry. Ever.</p>
+    <div class="hero__cta">
+      <a class="hero__btn hero__btn--primary" href="#download">↓&nbsp; Download Free</a>
+      <a class="hero__btn" href="https://github.com/Raul909/FXSound_For_Linux" target="_blank" rel="noopener">★&nbsp; Star on GitHub</a>
+    </div>
     <div class="hero__badges">
       <span class="badge">MIT License</span>
       <span class="badge">Tauri + Rust</span>
@@ -202,20 +286,33 @@
     </div>
   </section>
 
-  <section class="downloads">
+  <section class="showcase">
+    <div class="showcase__grid">
+      <figure>
+        <img src="./screenshot-eq.png" alt="FXSound for Linux — 10-band equalizer with a live spectrum visualizer" loading="lazy" />
+        <figcaption>10-Band Equalizer</figcaption>
+      </figure>
+      <figure>
+        <img src="./screenshot-effects.png" alt="FXSound for Linux — Fidelity, Ambiance, Dynamic Boost, 3D Surround and HyperBass effects" loading="lazy" />
+        <figcaption>Studio Effects</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="downloads" id="download">
     <h2>DOWNLOAD</h2>
     <div class="download-grid">
-      <a class="download-btn download-btn--primary" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.3_amd64.AppImage">
+      <a class="download-btn download-btn--primary" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.0_amd64.AppImage">
         <span class="download-btn__icon">📦</span>
         AppImage
         <span class="download-btn__sub">Universal · All distros</span>
       </a>
-      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.3_amd64.deb">
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.0_amd64.deb">
         <span class="download-btn__icon">🟠</span>
         .deb
         <span class="download-btn__sub">Ubuntu · Debian · Mint</span>
       </a>
-      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.3-1.x86_64.rpm">
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.1.0-1.x86_64.rpm">
         <span class="download-btn__icon">🔵</span>
         .rpm
         <span class="download-btn__sub">Fedora · RHEL · openSUSE</span>
@@ -274,21 +371,21 @@
 
     <div class="install-block">
       <div class="install-block__label">AppImage (Universal)</div>
-      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.3_amd64.AppImage
-chmod +x fxsound-linux_1.0.3_amd64.AppImage
-./fxsound-linux_1.0.3_amd64.AppImage</pre>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.0_amd64.AppImage
+chmod +x fxsound-linux_1.1.0_amd64.AppImage
+./fxsound-linux_1.1.0_amd64.AppImage</pre>
     </div>
 
     <div class="install-block">
       <div class="install-block__label">Debian / Ubuntu / Mint</div>
-      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.0.3_amd64.deb
-sudo dpkg -i fxsound-linux_1.0.3_amd64.deb</pre>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.0_amd64.deb
+sudo dpkg -i fxsound-linux_1.1.0_amd64.deb</pre>
     </div>
 
     <div class="install-block">
       <div class="install-block__label">Fedora / RHEL / openSUSE</div>
-      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.0.3-1.x86_64.rpm
-sudo rpm -i fxsound-linux-1.0.3-1.x86_64.rpm</pre>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.1.0-1.x86_64.rpm
+sudo rpm -i fxsound-linux-1.1.0-1.x86_64.rpm</pre>
     </div>
 
     <div class="install-block">
@@ -302,8 +399,24 @@ sudo rpm -i fxsound-linux-1.0.3-1.x86_64.rpm</pre>
     </div>
   </section>
 
+  <section class="community">
+    <h2>OPEN SOURCE &amp; COMMUNITY</h2>
+    <p>
+      FXSound for Linux is built by the community, for the community — 100% free
+      and MIT-licensed. If it makes your audio better, a ⭐ helps others discover
+      it. Found a bug or have an idea? Contributions of every size are welcome.
+    </p>
+    <div class="community__btns">
+      <a class="community__btn community__btn--star" href="https://github.com/Raul909/FXSound_For_Linux" target="_blank" rel="noopener">⭐ Star on GitHub</a>
+      <a class="community__btn" href="https://github.com/Raul909/FXSound_For_Linux/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">🛠 Contribute</a>
+      <a class="community__btn" href="https://github.com/Raul909/FXSound_For_Linux/issues" target="_blank" rel="noopener">🐞 Report a Bug</a>
+    </div>
+    <p class="community__note">Built with Tauri (Rust + React) · Runs on PipeWire &amp; PulseAudio · Works on every major distro</p>
+  </section>
+
   <footer>
     MIT © 2025 · <a href="https://github.com/Raul909/FXSound_For_Linux">GitHub</a> ·
+    <a href="https://github.com/Raul909/FXSound_For_Linux/blob/main/CONTRIBUTING.md">Contribute</a> ·
     <a href="https://github.com/Raul909/FXSound_For_Linux/issues">Report a Bug</a>
     <br><br>
     Made for the Linux audio community 🐧

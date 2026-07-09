@@ -914,4 +914,40 @@ mod tests {
         }
         assert!(changed, "ambiance did not alter the signal");
     }
+
+    #[test]
+    fn measure_default_music_preset_levels() {
+        // The default "Music" preset now activates ambiance (40) and surround
+        // (30). Confirm those defaults keep the overall level musically sane —
+        // a clipping or washed-out default would be a bad upgrade experience.
+        let mut engine = AudioEngine::new();
+        engine.set_effect("ambiance", 40.0);
+        engine.set_effect("surround", 30.0);
+
+        // Broadband-ish stereo signal, slightly decorrelated so surround engages.
+        let mut input = vec![0.0f32; 2048];
+        for (i, frame) in input.chunks_exact_mut(2).enumerate() {
+            let t = i as f32;
+            frame[0] = 0.25 * (t * 0.11).sin() + 0.10 * (t * 0.37).sin();
+            frame[1] = 0.25 * (t * 0.11 + 0.4).sin() + 0.10 * (t * 0.29).sin();
+        }
+        let mut output = vec![0.0f32; input.len()];
+        for _ in 0..8 {
+            engine.process_audio(&input, &mut output); // let the reverb tail settle
+        }
+
+        let rms = |b: &[f32]| (b.iter().map(|x| x * x).sum::<f32>() / b.len() as f32).sqrt();
+        let in_rms = rms(&input);
+        let out_rms = rms(&output);
+        let gain_db = 20.0 * (out_rms / in_rms).log10();
+        println!(
+            "Music-preset defaults: in_rms={in_rms:.4} out_rms={out_rms:.4} gain={gain_db:+.2} dB"
+        );
+
+        // Not inaudible, not a wall of reverb/clipping.
+        assert!(
+            gain_db > -6.0 && gain_db < 6.0,
+            "unexpected default level change: {gain_db:+.2} dB"
+        );
+    }
 }
