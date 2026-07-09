@@ -1,8 +1,9 @@
 //! Audio processing engine for FXSound.
 //!
 //! Provides a 10-band equalizer using biquad peak filters, audio effects
-//! (fidelity, dynamic compression, bass boost), and real-time FFT-based
-//! spectrum analysis for the visualizer.
+//! (fidelity, dynamic compression, bass boost, ambiance reverb, and 3D
+//! surround widening), and real-time FFT-based spectrum analysis for the
+//! visualizer.
 
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
@@ -109,6 +110,153 @@ impl BiquadFilter {
 }
 
 // ──────────────────────────────────────────────
+//  Reverb (Ambiance effect)
+// ──────────────────────────────────────────────
+
+/// One-pole-damped feedback comb filter (Freeverb-style).
+struct CombFilter {
+    buffer: Vec<f32>,
+    index: usize,
+    feedback: f32,
+    damp1: f32,
+    damp2: f32,
+    filter_store: f32,
+}
+
+impl CombFilter {
+    fn new(size: usize, feedback: f32, damp: f32) -> Self {
+        Self {
+            buffer: vec![0.0; size.max(1)],
+            index: 0,
+            feedback,
+            damp1: damp,
+            damp2: 1.0 - damp,
+            filter_store: 0.0,
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, input: f32) -> f32 {
+        let output = self.buffer[self.index];
+        // Low-pass the feedback path for a warmer, less metallic tail
+        self.filter_store = output * self.damp2 + self.filter_store * self.damp1;
+        self.buffer[self.index] = input + self.filter_store * self.feedback;
+        self.index += 1;
+        if self.index >= self.buffer.len() {
+            self.index = 0;
+        }
+        output
+    }
+}
+
+/// Schroeder allpass filter used to diffuse the reverb tail.
+struct AllpassFilter {
+    buffer: Vec<f32>,
+    index: usize,
+    feedback: f32,
+}
+
+impl AllpassFilter {
+    fn new(size: usize, feedback: f32) -> Self {
+        Self {
+            buffer: vec![0.0; size.max(1)],
+            index: 0,
+            feedback,
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, input: f32) -> f32 {
+        let buffered = self.buffer[self.index];
+        let output = -input + buffered;
+        self.buffer[self.index] = input + buffered * self.feedback;
+        self.index += 1;
+        if self.index >= self.buffer.len() {
+            self.index = 0;
+        }
+        output
+    }
+}
+
+/// Compact stereo reverb (4 parallel combs + 2 series allpasses per channel),
+/// a reduced Freeverb. Produces the wet signal for the "ambiance" effect.
+///
+/// Delay lengths are tuned for a 48 kHz sample rate; the right channel is
+/// offset by a small stereo spread so the two channels decorrelate.
+struct StereoReverb {
+    combs_l: Vec<CombFilter>,
+    combs_r: Vec<CombFilter>,
+    allpass_l: Vec<AllpassFilter>,
+    allpass_r: Vec<AllpassFilter>,
+    input_gain: f32,
+}
+
+impl StereoReverb {
+    fn new() -> Self {
+        // Comb/allpass delay lengths in samples (Freeverb tunings scaled to 48 kHz)
+        const COMB_TUNINGS: [usize; 4] = [1215, 1293, 1390, 1476];
+        const ALLPASS_TUNINGS: [usize; 2] = [605, 480];
+        const STEREO_SPREAD: usize = 25;
+        const ROOM_SIZE: f32 = 0.82; // comb feedback — larger = longer tail
+        const DAMP: f32 = 0.25; // high-frequency damping of the tail
+        const ALLPASS_FEEDBACK: f32 = 0.5;
+
+        let combs_l = COMB_TUNINGS
+            .iter()
+            .map(|&t| CombFilter::new(t, ROOM_SIZE, DAMP))
+            .collect();
+        let combs_r = COMB_TUNINGS
+            .iter()
+            .map(|&t| CombFilter::new(t + STEREO_SPREAD, ROOM_SIZE, DAMP))
+            .collect();
+        let allpass_l = ALLPASS_TUNINGS
+            .iter()
+            .map(|&t| AllpassFilter::new(t, ALLPASS_FEEDBACK))
+            .collect();
+        let allpass_r = ALLPASS_TUNINGS
+            .iter()
+            .map(|&t| AllpassFilter::new(t + STEREO_SPREAD, ALLPASS_FEEDBACK))
+            .collect();
+
+        Self {
+            combs_l,
+            combs_r,
+            allpass_l,
+            allpass_r,
+            // Scales the dry input feeding the reverb so the summed comb
+            // output stays near unity before the wet mix is applied.
+            input_gain: 0.022,
+        }
+    }
+
+    /// Process one stereo frame and return the wet (reverb-only) L/R signal.
+    #[inline]
+    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        let input = (l + r) * self.input_gain;
+
+        // Parallel comb filters (summed)
+        let mut wet_l = 0.0;
+        for comb in self.combs_l.iter_mut() {
+            wet_l += comb.process(input);
+        }
+        let mut wet_r = 0.0;
+        for comb in self.combs_r.iter_mut() {
+            wet_r += comb.process(input);
+        }
+
+        // Series allpass filters (diffusion)
+        for ap in self.allpass_l.iter_mut() {
+            wet_l = ap.process(wet_l);
+        }
+        for ap in self.allpass_r.iter_mut() {
+            wet_r = ap.process(wet_r);
+        }
+
+        (wet_l, wet_r)
+    }
+}
+
+// ──────────────────────────────────────────────
 //  Audio Engine
 // ──────────────────────────────────────────────
 
@@ -134,6 +282,9 @@ pub struct AudioEngine {
 
     /// Precomputed FFT bin boundaries for mapping to 32 visualizer bars.
     fft_bin_boundaries: [usize; 33],
+
+    /// Stereo reverb driving the "ambiance" effect (spatial ambience).
+    reverb: StereoReverb,
 }
 
 impl AudioEngine {
@@ -172,6 +323,7 @@ impl AudioEngine {
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
             fft_bin_boundaries,
+            reverb: StereoReverb::new(),
         }
     }
 
@@ -243,7 +395,7 @@ impl AudioEngine {
         // Apply the 10-band EQ using biquad filters
         self.apply_eq(input, output);
 
-        // Apply audio effects (fidelity, dynamic compression, bass boost)
+        // Apply audio effects (fidelity, dynamic, bass, 3D surround, ambiance)
         self.apply_effects(output);
 
         // Hard limiter — prevent clipping
@@ -296,58 +448,88 @@ impl AudioEngine {
     // ── Effects Processing ──
 
     /// Apply audio effects to the buffer.
-    fn apply_effects(&self, buffer: &mut [f32]) {
+    ///
+    /// Chain order: per-sample shaping (fidelity, dynamic compression, bass
+    /// boost) → 3D surround (mid/side stereo widening) → ambiance (stereo
+    /// reverb mixed in as a wet send).
+    fn apply_effects(&mut self, buffer: &mut [f32]) {
         let fidelity = self.effects.get("fidelity").copied().unwrap_or(0.0);
         let dynamic = self.effects.get("dynamic").copied().unwrap_or(0.0);
         let bass = self.effects.get("bass").copied().unwrap_or(0.0);
+        let ambiance = self.effects.get("ambiance").copied().unwrap_or(0.0);
+        let surround = self.effects.get("surround").copied().unwrap_or(0.0);
 
         let apply_fidelity = fidelity > 0.0;
         let apply_dynamic = dynamic > 0.0;
         let apply_bass = bass > 0.0;
 
-        if !apply_fidelity && !apply_dynamic && !apply_bass {
-            return;
-        }
+        // ── Per-sample shaping: fidelity, dynamic compression, bass boost ──
+        if apply_fidelity || apply_dynamic || apply_bass {
+            // Pre-compute effect parameters outside the loop
+            let fidelity_amount = fidelity / 100.0;
+            let fidelity_mix = fidelity_amount * 0.3;
+            let fidelity_dry = 1.0 - fidelity_mix;
+            let fidelity_sat = 1.0 + fidelity_amount * 0.5;
 
-        // Pre-compute effect parameters outside the loop
-        let fidelity_amount = fidelity / 100.0;
-        let fidelity_mix = fidelity_amount * 0.3;
-        let fidelity_dry = 1.0 - fidelity_mix;
-        let fidelity_sat = 1.0 + fidelity_amount * 0.5;
+            let dyn_threshold = 0.7 - (dynamic / 100.0) * 0.3;
+            let dyn_ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5;
 
-        let dyn_threshold = 0.7 - (dynamic / 100.0) * 0.3;
-        let dyn_ratio = 0.5 + (1.0 - dynamic / 100.0) * 0.5;
+            let bass_boost = 1.0 + (bass / 100.0) * 0.3;
 
-        let bass_boost = 1.0 + (bass / 100.0) * 0.3;
+            for sample in buffer.iter_mut() {
+                let mut s = *sample;
 
-        for sample in buffer.iter_mut() {
-            let mut s = *sample;
+                // Fidelity: subtle high-frequency harmonic enhancement
+                if apply_fidelity {
+                    // Optimization: tanh is an odd function (tanh(-x) = -tanh(x)),
+                    // so (s * k).tanh() is mathematically identical to (s.abs() * k).tanh() * s.signum()
+                    // Removing abs() and signum() saves CPU cycles per sample.
+                    let saturated = (s * fidelity_sat).tanh();
+                    s = s * fidelity_dry + saturated * fidelity_mix;
+                }
 
-            // Fidelity: subtle high-frequency harmonic enhancement
-            if apply_fidelity {
-                // Optimization: tanh is an odd function (tanh(-x) = -tanh(x)),
-                // so (s * k).tanh() is mathematically identical to (s.abs() * k).tanh() * s.signum()
-                // Removing abs() and signum() saves CPU cycles per sample.
-                let saturated = (s * fidelity_sat).tanh();
-                s = s * fidelity_dry + saturated * fidelity_mix;
-            }
-
-            // Dynamic compression: reduces the gap between loud and quiet
-            if apply_dynamic {
-                if s.abs() > dyn_threshold {
+                // Dynamic compression: reduces the gap between loud and quiet
+                if apply_dynamic && s.abs() > dyn_threshold {
                     let sign = s.signum();
                     let excess = s.abs() - dyn_threshold;
                     s = sign * (dyn_threshold + excess * dyn_ratio);
                 }
-            }
 
-            // Bass boost: apply gain to low frequencies
-            // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
-            if apply_bass {
-                s *= bass_boost;
-            }
+                // Bass boost: apply gain to low frequencies
+                // (simplified — applies a uniform boost; proper version would use a low-shelf filter)
+                if apply_bass {
+                    s *= bass_boost;
+                }
 
-            *sample = s;
+                *sample = s;
+            }
+        }
+
+        // ── 3D Surround: mid/side stereo widening ──
+        // width scales from 1.0 (no change) at 0 to 2.0 at 100. The mid
+        // (mono) component is preserved, so mono content and downmix
+        // compatibility are unaffected — only the stereo "side" is widened.
+        if surround > 0.0 {
+            let width = 1.0 + (surround / 100.0);
+            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
+                let mid = (frame[0] + frame[1]) * 0.5;
+                let side = (frame[0] - frame[1]) * 0.5 * width;
+                frame[0] = mid + side;
+                frame[1] = mid - side;
+            }
+        }
+
+        // ── Ambiance: stereo reverb mixed on top of the dry signal ──
+        // Runs as a parallel "send": the dry signal is kept intact and a
+        // scaled wet reverb is added, so raising ambiance adds space without
+        // hollowing out the original. The limiter downstream tames peaks.
+        if ambiance > 0.0 {
+            let wet = (ambiance / 100.0) * 0.45;
+            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
+                let (wet_l, wet_r) = self.reverb.process(frame[0], frame[1]);
+                frame[0] += wet_l * wet;
+                frame[1] += wet_r * wet;
+            }
         }
     }
 
@@ -682,5 +864,54 @@ mod tests {
             assert_eq!(filter.process(sample, 0), sample);
             assert_eq!(filter.process(sample, 1), sample);
         }
+    }
+
+    #[test]
+    fn test_pipeline_identity_at_defaults() {
+        // With flat EQ and all effects at zero, processing must be a
+        // pass-through for a non-silent, in-range stereo signal.
+        let mut engine = AudioEngine::new();
+        let input: Vec<f32> = (0..1024).map(|i| 0.2 * (i as f32 * 0.05).sin()).collect();
+        let mut output = vec![0.0f32; input.len()];
+        engine.process_audio(&input, &mut output);
+        for (a, b) in input.iter().zip(output.iter()) {
+            assert!((a - b).abs() < 1e-4, "pipeline not identity at defaults");
+        }
+    }
+
+    #[test]
+    fn test_surround_preserves_mono() {
+        // Mid/side widening must leave mono content (L == R) untouched at any
+        // width, because the widened "side" component is zero.
+        let mut engine = AudioEngine::new();
+        engine.set_effect("surround", 100.0);
+        let input: Vec<f32> = vec![0.3; 1024]; // L == R everywhere
+        let mut output = vec![0.0f32; input.len()];
+        engine.process_audio(&input, &mut output);
+        for (a, b) in input.iter().zip(output.iter()) {
+            assert!((a - b).abs() < 1e-4, "surround altered mono content");
+        }
+    }
+
+    #[test]
+    fn test_ambiance_is_finite_bounded_and_active() {
+        // The reverb must stay finite, respect the limiter ceiling, and
+        // audibly change the signal once its tail has built up.
+        let mut engine = AudioEngine::new();
+        engine.set_effect("ambiance", 100.0);
+        let input: Vec<f32> = (0..2048).map(|i| 0.3 * (i as f32 * 0.1).sin()).collect();
+        let mut output = vec![0.0f32; input.len()];
+        for _ in 0..4 {
+            engine.process_audio(&input, &mut output);
+        }
+        let mut changed = false;
+        for (a, b) in input.iter().zip(output.iter()) {
+            assert!(b.is_finite(), "reverb produced non-finite output");
+            assert!(b.abs() <= 1.0001, "reverb output exceeded limiter ceiling");
+            if (a - b).abs() > 1e-3 {
+                changed = true;
+            }
+        }
+        assert!(changed, "ambiance did not alter the signal");
     }
 }

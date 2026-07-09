@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.0] - 2026-07-09
+
+### Added
+- **Ambiance** effect: a compact stereo reverb (reduced Freeverb — 4 comb + 2 allpass filters per channel) mixed as a parallel wet send, adding a sense of space without hollowing out the dry signal.
+- **3D Surround** effect: mid/side stereo widening that preserves the mono (center) component, so mono content and downmix compatibility stay intact.
+
+### Fixed
+- The Ambiance and 3D Surround sliders previously had no effect on audio — both are now fully implemented in the Rust audio engine.
+
+### Changed
+- `apply_effects` now runs a defined chain: per-sample shaping (fidelity, dynamic, bass) → 3D surround → ambiance reverb, ahead of the limiter.
+
 ## [1.0.3] - 2026-06-24
 
 ### Fixed
@@ -97,8 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug fixes and performance improvements
 
 ### [1.2.0] - Planned
-- Reverb implementation (Ambiance effect)
-- HRTF 3D Surround processing
+- Virtual-sink capture architecture (eliminate audio doubling/feedback for true system-wide processing)
+- Advanced HRTF-based 3D Surround
 - Per-application audio routing
 - Device selection from PulseAudio
 
@@ -111,6 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[1.0.0]: https://github.com/YOUR_USERNAME/fxsound-linux/releases/tag/v1.0.0
-[0.1.0]: https://github.com/YOUR_USERNAME/fxsound-linux/releases/tag/v1.0.0
-[0.0.0]: https://github.com/YOUR_USERNAME/fxsound-linux/releases/tag/v1.0.0
+[1.1.0]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.0
+[1.0.3]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.0.3
+[1.0.2]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.0.2
+[1.0.0]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.0.0
