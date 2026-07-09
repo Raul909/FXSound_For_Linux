@@ -232,10 +232,18 @@ impl AudioEngine {
             return;
         }
 
-        // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
+        // Skip near-silent input to avoid amplifying noise.
+        // Optimization: Use a short-circuiting peak detector instead of an O(n) RMS calculation.
+        // We only need one sample > 0.005 to know the block isn't completely silent.
+        let mut is_silent = true;
+        for &x in input {
+            if x.abs() > 0.005 {
+                is_silent = false;
+                break;
+            }
+        }
+
+        if is_silent {
             output.fill(0.0);
             return;
         }
@@ -275,21 +283,18 @@ impl AudioEngine {
 
         let active_bands_slice = &active_bands[..active_count];
 
-        // Process each sample through all active biquad filters
-        // Interleaved stereo: chunk[0] = left, chunk[1] = right
-        for chunk in output.chunks_exact_mut(CHANNELS as usize) {
-            let mut l = chunk[0];
-            let mut r = chunk[1];
-
-            for &band in active_bands_slice {
+        // Process the buffer through active biquad filters.
+        // Optimization: Iterating over bands on the outer loop and the buffer on the inner loop
+        // keeps the biquad filter state in CPU registers/cache across the entire buffer,
+        // rather than reloading filter state per sample chunk.
+        for &band in active_bands_slice {
+            let filter = &mut self.filters[band];
+            for chunk in output.chunks_exact_mut(CHANNELS as usize) {
                 // Process left channel
-                l = self.filters[band].process(l, 0);
+                chunk[0] = filter.process(chunk[0], 0);
                 // Process right channel
-                r = self.filters[band].process(r, 1);
+                chunk[1] = filter.process(chunk[1], 1);
             }
-
-            chunk[0] = l;
-            chunk[1] = r;
         }
     }
 
@@ -388,17 +393,22 @@ impl AudioEngine {
             let bin_low = self.fft_bin_boundaries[i];
             let bin_high = self.fft_bin_boundaries[i + 1];
 
-            let mut max_val = 0.0f32;
-            let mut sum_val = 0.0f32;
+            let mut max_val_sqr = 0.0f32;
+            let mut sum_val_sqr = 0.0f32;
             let count = bin_high - bin_low;
 
             for bin in bin_low..bin_high {
-                let mag = self.complex_buffer[bin].norm();
-                max_val = max_val.max(mag);
-                sum_val += mag;
+                // Optimization: Use norm_sqr to avoid doing a sqrt on every single bin.
+                // We sum/max the squared values, and only take the sqrt per bar.
+                let mag_sqr = self.complex_buffer[bin].norm_sqr();
+                max_val_sqr = max_val_sqr.max(mag_sqr);
+                sum_val_sqr += mag_sqr;
             }
 
-            let avg_val = sum_val / count as f32;
+            let avg_val_sqr = sum_val_sqr / count as f32;
+            let avg_val = avg_val_sqr.sqrt();
+            let max_val = max_val_sqr.sqrt();
+
             // Blend peak and average for visually appealing and responsive bars
             let val = (avg_val * 0.3 + max_val * 0.7) * 150.0;
 
