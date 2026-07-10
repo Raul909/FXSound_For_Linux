@@ -157,11 +157,14 @@ export default function App() {
           </div>
 
           <div className="header__dropdowns">
-            {dropdowns.map(({ label, value: val, options, onChange, showCustom }) => (
+            {dropdowns.map(({ label, value: val, options, onChange, showCustom }) => {
+              const selectId = `dropdown-select-${label.replace(/\s+/g, "-")}`;
+              return (
               <div key={label} className="dropdown">
-                <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
+                <label htmlFor={selectId} id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</label>
                 <div className="dropdown__wrapper">
                   <select
+                    id={selectId}
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
@@ -179,7 +182,7 @@ export default function App() {
                   </svg>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -264,7 +267,7 @@ export default function App() {
         </div>
 
         {/* ---- Status Bar ---- */}
-        <div className="status-bar">
+        <div className="status-bar" role="status" aria-live="polite">
           <div className="status-bar__indicator">
             <div className={`status-bar__dot ${powered ? "status-bar__dot--active" : ""}`} />
             <span className={`status-bar__text ${powered ? "status-bar__text--active" : ""}`}>
