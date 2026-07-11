@@ -8,7 +8,6 @@
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
-use std::collections::HashMap;
 use std::sync::Arc;
 
 const SAMPLE_RATE: u32 = 48000;
@@ -271,7 +270,11 @@ pub struct AudioEngine {
 
     powered: bool,
     eq_bands: [f32; 10],
-    effects: HashMap<String, f32>,
+    effect_fidelity: f32,
+    effect_dynamic: f32,
+    effect_bass: f32,
+    effect_ambiance: f32,
+    effect_surround: f32,
     sample_rate: u32,
 
     /// One biquad filter per EQ band — rebuilt when gain changes.
@@ -318,7 +321,11 @@ impl AudioEngine {
             complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
-            effects: HashMap::new(),
+            effect_fidelity: 0.0,
+            effect_dynamic: 0.0,
+            effect_bass: 0.0,
+            effect_ambiance: 0.0,
+            effect_surround: 0.0,
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
@@ -352,7 +359,14 @@ impl AudioEngine {
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
         let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
+        match effect {
+            "fidelity" => self.effect_fidelity = clamped,
+            "dynamic" => self.effect_dynamic = clamped,
+            "bass" => self.effect_bass = clamped,
+            "ambiance" => self.effect_ambiance = clamped,
+            "surround" => self.effect_surround = clamped,
+            _ => log::warn!("Unknown effect: {}", effect),
+        }
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
@@ -453,11 +467,11 @@ impl AudioEngine {
     /// boost) → 3D surround (mid/side stereo widening) → ambiance (stereo
     /// reverb mixed in as a wet send).
     fn apply_effects(&mut self, buffer: &mut [f32]) {
-        let fidelity = self.effects.get("fidelity").copied().unwrap_or(0.0);
-        let dynamic = self.effects.get("dynamic").copied().unwrap_or(0.0);
-        let bass = self.effects.get("bass").copied().unwrap_or(0.0);
-        let ambiance = self.effects.get("ambiance").copied().unwrap_or(0.0);
-        let surround = self.effects.get("surround").copied().unwrap_or(0.0);
+        let fidelity = self.effect_fidelity;
+        let dynamic = self.effect_dynamic;
+        let bass = self.effect_bass;
+        let ambiance = self.effect_ambiance;
+        let surround = self.effect_surround;
 
         let apply_fidelity = fidelity > 0.0;
         let apply_dynamic = dynamic > 0.0;
