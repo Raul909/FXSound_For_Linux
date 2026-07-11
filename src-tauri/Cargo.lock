@@ -964,7 +964,7 @@ dependencies = [
 
 [[package]]
 name = "fxsound-linux"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "libpulse-binding",
  "libpulse-simple-binding",

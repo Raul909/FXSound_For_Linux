@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.1] - 2026-07-12
+
+### Fixed
+- Fixed a black, unresponsive window on some Linux systems (Fedora, NVIDIA drivers, certain Mesa/Wayland and virtual-machine setups) where the app aborted with `Could not create default EGL display: EGL_BAD_PARAMETER`. The WebKitGTK DMABUF renderer is now disabled by default, which falls back to a compatible rendering path. Set `WEBKIT_DISABLE_DMABUF_RENDERER=0` before launching to opt back in.
+
 ## [1.1.0] - 2026-07-09
 
 ### Added
@@ -101,13 +106,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Upcoming
 
-### [1.1.0] - Planned
-- Proper biquad EQ filters
-- Preset persistence (save/load custom presets)
-- System tray menu with quick controls
-- Auto-updater integration
-- Bug fixes and performance improvements
-
 ### [1.2.0] - Planned
 - Virtual-sink capture architecture (eliminate audio doubling/feedback for true system-wide processing)
 - Advanced HRTF-based 3D Surround
@@ -123,6 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.1.1]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.0
 [1.0.3]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.0.2

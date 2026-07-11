@@ -1,6 +1,6 @@
 [package]
 name = "fxsound-linux"
-version = "1.1.0"
+version = "1.1.1"
 description = "Audio enhancer for Linux with 10-band EQ and effects"
 authors = ["FXSound Linux Contributors"]
 license = "MIT"
