@@ -123,6 +123,19 @@ fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Work around WebKitGTK failing to initialize its DMABUF/EGL renderer on
+    // some Linux systems (NVIDIA drivers, certain Mesa/Wayland setups, VMs).
+    // Without this the webview aborts with "Could not create default EGL
+    // display: EGL_BAD_PARAMETER" and shows a black, unresponsive window.
+    // Disabling the DMABUF renderer falls back to a compatible path with
+    // negligible cost for this lightweight UI. Respect an explicit user value.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             // Enable debug logging in development builds

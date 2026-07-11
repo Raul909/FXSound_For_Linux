@@ -24,6 +24,11 @@
   <developer_name>FXSound Linux Contributors</developer_name>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.1" date="2026-07-12">
+      <description>
+        <p>Fix a black, unresponsive window on some Linux systems (Fedora, NVIDIA, certain Mesa/Wayland and VM setups) caused by a WebKitGTK EGL/DMABUF renderer failure.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-07-09">
       <description>
         <p>Implemented the Ambiance (stereo reverb) and 3D Surround (stereo widening) effects — previously non-functional sliders now shape the audio.</p>
