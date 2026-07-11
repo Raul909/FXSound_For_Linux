@@ -114,6 +114,12 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
     const fillTop = value >= 0 ? (100 - thumbPercent) : 50;
     const fillHeight = Math.abs(thumbPercent - 50);
 
+    // Handle double-click to reset
+    function handleDoubleClick() {
+        if (disabled) return;
+        onChange(0);
+    }
+
     return (
         <div className="eq-band">
             {/* Current gain value label */}
@@ -126,9 +132,10 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
                 onKeyDown={handleKeyDown}
+                onDoubleClick={handleDoubleClick}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? "Power on to adjust" : "Drag to adjust, double-click to reset"}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-label={`${freq} Hz equalizer band`}
