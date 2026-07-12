@@ -123,14 +123,27 @@ fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Work around WebKitGTK failing to initialize its DMABUF/EGL renderer on
-    // some Linux systems (NVIDIA drivers, certain Mesa/Wayland setups, VMs).
-    // Without this the webview aborts with "Could not create default EGL
-    // display: EGL_BAD_PARAMETER" and shows a black, unresponsive window.
-    // Disabling the DMABUF renderer falls back to a compatible path with
-    // negligible cost for this lightweight UI. Respect an explicit user value.
+    // Work around WebKitGTK failing to bring up its GPU rendering path on some
+    // Linux systems (newer Mesa/Wayland — e.g. Fedora + GNOME — as well as
+    // NVIDIA drivers and VMs). Symptoms: the webview aborts at startup with
+    // "Could not create default EGL display: EGL_BAD_PARAMETER. Aborting..."
+    // (a blank AppImage window), or — when the system WebKitGTK renders but its
+    // accelerated compositor wedges on the Wayland surface — the window paints
+    // once and then goes "Not Responding" (seen on the deb/rpm builds).
+    //
+    // The real fix is to disable accelerated compositing entirely, so WebKitGTK
+    // renders in software and never creates an EGL display. Disabling only the
+    // DMABUF renderer (as 1.1.1 did) was not enough — the EGL display is still
+    // created for the compositor, so the abort persisted even with
+    // WEBKIT_DISABLE_DMABUF_RENDERER=1 set. This UI is a lightweight EQ panel,
+    // so software rendering costs nothing perceptible. Respect explicit user
+    // overrides so anyone who wants the GPU path back can opt in.
     #[cfg(target_os = "linux")]
     {
+        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
+            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        }
+        // Keep the DMABUF renderer disabled as a second layer (from 1.1.1).
         if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
