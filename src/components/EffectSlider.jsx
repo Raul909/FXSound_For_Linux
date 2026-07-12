@@ -116,10 +116,11 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
             <div
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
+                onDoubleClick={() => !disabled && onChange(0)}
                 onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? "Power on to adjust" : "Double-click to reset"}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
