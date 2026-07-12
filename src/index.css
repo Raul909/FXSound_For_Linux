@@ -599,3 +599,9 @@ select option {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+
+.status-bar__version {
+  margin-left: 8px;
+  color: var(--text-dim);
+  font-weight: 500;
+}

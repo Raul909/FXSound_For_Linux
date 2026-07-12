@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.2] - 2026-07-12
+
+### Fixed
+- Fixed the app still failing on newer Mesa/Wayland systems (e.g. Fedora + GNOME) despite the 1.1.1 fix — the AppImage still aborted with `Could not create default EGL display: EGL_BAD_PARAMETER` (blank window) and the `.deb`/`.rpm` builds painted once then went **Not Responding**. WebKitGTK accelerated compositing is now disabled by default (`WEBKIT_DISABLE_COMPOSITING_MODE=1`), so the webview renders in software and never creates an EGL display. Disabling only the DMABUF renderer (1.1.1) was not enough. Set `WEBKIT_DISABLE_COMPOSITING_MODE=0` before launching to re-enable GPU compositing.
+
 ## [1.1.1] - 2026-07-12
 
 ### Fixed
@@ -121,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.1.2]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.0
 [1.0.3]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.0.3

@@ -1,6 +1,6 @@
 name: fxsound-linux
 base: core22
-version: '1.1.1'
+version: '1.1.2'
 summary: Audio enhancer with 10-band EQ and effects
 description: |
   A free, open-source audio enhancer for Linux with a 10-band equalizer,

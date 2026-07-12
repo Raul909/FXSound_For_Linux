@@ -272,7 +272,10 @@ export default function App() {
             </span>
           </div>
           <span className="status-bar__info">{shortDeviceName} · 48kHz</span>
-          <span className="status-bar__preset">{preset.toUpperCase()}</span>
+          <span className="status-bar__preset">
+            {preset.toUpperCase()}
+            <span className="status-bar__version">v1.1.2</span>
+          </span>
         </div>
 
       </div>

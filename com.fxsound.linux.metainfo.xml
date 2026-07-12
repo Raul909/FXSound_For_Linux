@@ -24,6 +24,11 @@
   <developer_name>FXSound Linux Contributors</developer_name>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.2" date="2026-07-12">
+      <description>
+        <p>Fix a blank window (AppImage) or a "Not Responding" window (deb/rpm) on newer Mesa/Wayland systems such as Fedora + GNOME. WebKitGTK accelerated compositing is now disabled so the webview no longer aborts creating an EGL display — completing the 1.1.1 rendering fix.</p>
+      </description>
+    </release>
     <release version="1.1.1" date="2026-07-12">
       <description>
         <p>Fix a black, unresponsive window on some Linux systems (Fedora, NVIDIA, certain Mesa/Wayland and VM setups) caused by a WebKitGTK EGL/DMABUF renderer failure.</p>

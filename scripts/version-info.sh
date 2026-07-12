@@ -6,18 +6,18 @@ cat << 'EOF'
 ║           FXSound Linux - Version Management                 ║
 ╚══════════════════════════════════════════════════════════════╝
 
-Current Version: 1.1.1
+Current Version: 1.1.2
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📋 Version Locations:
 
-  1. package.json              → "version": "1.1.1"
-  2. src-tauri/Cargo.toml      → version = "1.1.1"
-  3. src-tauri/tauri.conf.json → "version": "1.1.1"
-  4. src/App.jsx               → v1.1.1 (UI display)
-  5. PKGBUILD                  → pkgver=1.1.1
-  6. com.fxsound.linux.yml     → tag: v1.1.1
+  1. package.json              → "version": "1.1.2"
+  2. src-tauri/Cargo.toml      → version = "1.1.2"
+  3. src-tauri/tauri.conf.json → "version": "1.1.2"
+  4. src/App.jsx               → v1.1.2 (UI display)
+  5. PKGBUILD                  → pkgver=1.1.2
+  6. com.fxsound.linux.yml     → tag: v1.1.2
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -39,9 +39,9 @@ Current Version: 1.1.1
   When you run: npm run tauri:build
 
   You'll get:
-    • fxsound-linux_1.1.1_amd64.AppImage
-    • fxsound-linux_1.1.1_amd64.deb
-    • fxsound-linux-1.1.1-1.x86_64.rpm
+    • fxsound-linux_1.1.2_amd64.AppImage
+    • fxsound-linux_1.1.2_amd64.deb
+    • fxsound-linux-1.1.2-1.x86_64.rpm
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -50,19 +50,19 @@ Current Version: 1.1.1
   1. Verify: ./verify-version.sh
   2. Build:  ./build-release.sh
   3. Test:   Test the AppImage
-  4. Tag:    git tag v1.1.1 && git push origin v1.1.1
+  4. Tag:    git tag v1.1.2 && git push origin v1.1.2
   5. Upload: Create GitHub release and upload files
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📝 To Update Version (e.g., to 1.1.1):
+📝 To Update Version (e.g., to 1.1.2):
 
-  1. Edit package.json → "version": "1.1.1"
-  2. Edit src-tauri/Cargo.toml → version = "1.1.1"
-  3. Edit src-tauri/tauri.conf.json → "version": "1.1.1"
-  4. Edit src/App.jsx → v1.1.1
-  5. Edit PKGBUILD → pkgver=1.1.1
-  6. Edit com.fxsound.linux.yml → tag: v1.1.1
+  1. Edit package.json → "version": "1.1.2"
+  2. Edit src-tauri/Cargo.toml → version = "1.1.2"
+  3. Edit src-tauri/tauri.conf.json → "version": "1.1.2"
+  4. Edit src/App.jsx → v1.1.2
+  5. Edit PKGBUILD → pkgver=1.1.2
+  6. Edit com.fxsound.linux.yml → tag: v1.1.2
   7. Update CHANGELOG.md
   8. Run: ./verify-version.sh
 
@@ -76,6 +76,6 @@ Current Version: 1.1.1
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ Status: All versions synchronized to 1.1.1
+✅ Status: All versions synchronized to 1.1.2
 
 EOF
