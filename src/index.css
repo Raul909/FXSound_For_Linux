@@ -190,12 +190,14 @@ select option {
 /* ---- Dropdown ---- */
 
 .dropdown__label {
+  display: block;
   font-size: 9px;
   color: var(--text-dim);
   letter-spacing: 1.5px;
   margin-bottom: 3px;
   font-weight: 600;
   text-transform: uppercase;
+  cursor: pointer;
 }
 
 .dropdown__wrapper {
