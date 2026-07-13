@@ -24,6 +24,11 @@
   <developer_name>FXSound Linux Contributors</developer_name>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.3" date="2026-07-14">
+      <description>
+        <p>Fix the app aborting with EGL_BAD_PARAMETER (blank window) on machines with no usable GPU acceleration, such as VirtualBox/VMware VMs. WebKitGTK creates a shared EGL display at startup regardless of compositing mode, so the app now defaults to Mesa software rendering (LIBGL_ALWAYS_SOFTWARE=1) so that display always initializes — completing the 1.1.1/1.1.2 rendering fixes.</p>
+      </description>
+    </release>
     <release version="1.1.2" date="2026-07-12">
       <description>
         <p>Fix a blank window (AppImage) or a "Not Responding" window (deb/rpm) on newer Mesa/Wayland systems such as Fedora + GNOME. WebKitGTK accelerated compositing is now disabled so the webview no longer aborts creating an EGL display — completing the 1.1.1 rendering fix.</p>

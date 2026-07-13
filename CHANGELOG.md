@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.3] - 2026-07-14
+
+### Fixed
+- Fixed the app still aborting with `Could not create default EGL display: EGL_BAD_PARAMETER` on systems with no usable GPU acceleration — most visibly the AppImage on a VirtualBox/VMware VM, which stayed on a blank window while the installed `.deb` worked on the same machine. Root cause: WebKitGTK brings up a *shared EGL display at process startup regardless of compositing mode*, so the 1.1.1 (DMABUF) and 1.1.2 (compositing) toggles never prevented that abort. The app now defaults `LIBGL_ALWAYS_SOFTWARE=1`, pointing Mesa at its software rasteriser (llvmpipe) so WebKitGTK's EGL display always initializes. Set `LIBGL_ALWAYS_SOFTWARE=0` before launching to force the GPU path back on.
+
 ## [1.1.2] - 2026-07-12
 
 ### Fixed
@@ -126,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.1.3]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Raul909/FXSound_For_Linux/releases/tag/v1.1.0

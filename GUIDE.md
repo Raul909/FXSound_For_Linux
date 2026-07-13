@@ -29,8 +29,8 @@
 ### Debian / Ubuntu / Pop!_OS / Mint
 
 ```bash
-wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.2_amd64.deb
-sudo dpkg -i fxsound-linux_1.1.2_amd64.deb
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.3_amd64.deb
+sudo dpkg -i fxsound-linux_1.1.3_amd64.deb
 # If you get dependency errors:
 sudo apt-get install -f
 ```
@@ -38,8 +38,8 @@ sudo apt-get install -f
 ### Fedora / RHEL / openSUSE
 
 ```bash
-wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.1.2-1.x86_64.rpm
-sudo rpm -i fxsound-linux-1.1.2-1.x86_64.rpm
+wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.1.3-1.x86_64.rpm
+sudo rpm -i fxsound-linux-1.1.3-1.x86_64.rpm
 ```
 
 ### Arch Linux (AUR)
