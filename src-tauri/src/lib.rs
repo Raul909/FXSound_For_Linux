@@ -125,21 +125,34 @@ fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
 pub fn run() {
     // Work around WebKitGTK failing to bring up its GPU rendering path on some
     // Linux systems (newer Mesa/Wayland — e.g. Fedora + GNOME — as well as
-    // NVIDIA drivers and VMs). Symptoms: the webview aborts at startup with
+    // NVIDIA drivers and VMs like VirtualBox/VMware). Symptoms: the webview
+    // aborts at startup with
     // "Could not create default EGL display: EGL_BAD_PARAMETER. Aborting..."
     // (a blank AppImage window), or — when the system WebKitGTK renders but its
     // accelerated compositor wedges on the Wayland surface — the window paints
     // once and then goes "Not Responding" (seen on the deb/rpm builds).
     //
-    // The real fix is to disable accelerated compositing entirely, so WebKitGTK
-    // renders in software and never creates an EGL display. Disabling only the
-    // DMABUF renderer (as 1.1.1 did) was not enough — the EGL display is still
-    // created for the compositor, so the abort persisted even with
-    // WEBKIT_DISABLE_DMABUF_RENDERER=1 set. This UI is a lightweight EQ panel,
-    // so software rendering costs nothing perceptible. Respect explicit user
-    // overrides so anyone who wants the GPU path back can opt in.
+    // The 1.1.1/1.1.2 fixes (disable the DMABUF renderer, then disable
+    // accelerated compositing) were both incomplete: WebKitGTK still brings up a
+    // *shared* EGL display at process startup regardless of compositing mode, so
+    // when the GPU stack can't hand one back the hard abort survived. The
+    // definitive fix is to point Mesa at its software rasteriser (llvmpipe) via
+    // LIBGL_ALWAYS_SOFTWARE — that EGL display then always succeeds. This is the
+    // very path that makes the system-installed .deb work on the same VM where
+    // the bundled AppImage aborts, so we apply it for every package type.
+    //
+    // This UI is a lightweight EQ panel, so software rendering costs nothing
+    // perceptible. We respect explicit user overrides so anyone who wants the
+    // GPU path back can opt in (e.g. LIBGL_ALWAYS_SOFTWARE=0).
     #[cfg(target_os = "linux")]
     {
+        // Primary fix (1.1.3): force Mesa software rendering so WebKitGTK's
+        // startup EGL display can always be created, even with no working GPU.
+        if std::env::var_os("LIBGL_ALWAYS_SOFTWARE").is_none() {
+            std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+        }
+        // Disable accelerated compositing so web content never needs the GPU
+        // path (from 1.1.2).
         if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
             std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
