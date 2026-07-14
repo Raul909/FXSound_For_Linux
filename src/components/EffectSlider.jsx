@@ -107,6 +107,12 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
         window.addEventListener("mouseup", handleMouseUp);
     }
 
+    // Handle double-click to reset slider
+    function handleDoubleClick() {
+        if (disabled) return;
+        onChange(0);
+    }
+
     return (
         <div className="effect-slider">
             {/* Effect name */}
@@ -117,9 +123,10 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
                 ref={trackRef}
                 onMouseDown={handleMouseDown}
                 onKeyDown={handleKeyDown}
+                onDoubleClick={handleDoubleClick}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? "Power on to adjust" : "Double-click to reset"}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
