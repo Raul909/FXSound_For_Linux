@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 const BAR_COUNT = 32;
 const CANVAS_HEIGHT = 120;
+const RADII_POWERED = [3, 3, 0, 0];
+const RADII_UNPOWERED = [1, 1, 0, 0];
 
 /**
  * Real-time audio spectrum visualizer (canvas-based).
@@ -122,7 +124,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 ctx.fillStyle = "#1e1e2a";
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
-                ctx.roundRect(x, y, barW, barH, [1, 1, 0, 0]);
+                ctx.roundRect(x, y, barW, barH, RADII_UNPOWERED);
                 ctx.fill();
                 ctx.globalAlpha = 1;
                 continue;
@@ -133,7 +135,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             ctx.globalAlpha = 0.5 + intensity * 0.5;
             ctx.fillStyle = barGrad;
             ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+            ctx.roundRect(x, y, barW, barH, RADII_POWERED);
             ctx.fill();
 
             // Top glow highlight on taller bars
@@ -199,12 +201,20 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                     invoke("get_visualizer_data")
                         .then((data) => {
                             const src = targetData.current;
-                            const ratio = data.length / BAR_COUNT;
-                            for (let i = 0; i < BAR_COUNT; i++) {
-                                const si = Math.floor(i * ratio);
-                                const ni = Math.min(si + 1, data.length - 1);
-                                const f = (i * ratio) - si;
-                                src[i] = data[si] * (1 - f) + data[ni] * f;
+                            if (data.length === BAR_COUNT) {
+                                // Fast path: exact match
+                                for (let i = 0; i < BAR_COUNT; i++) {
+                                    src[i] = data[i];
+                                }
+                            } else {
+                                // Interpolation
+                                const ratio = data.length / BAR_COUNT;
+                                for (let i = 0; i < BAR_COUNT; i++) {
+                                    const si = Math.floor(i * ratio);
+                                    const ni = Math.min(si + 1, data.length - 1);
+                                    const f = (i * ratio) - si;
+                                    src[i] = data[si] * (1 - f) + data[ni] * f;
+                                }
                             }
                         })
                         .catch(() => { /* ignore */ })
