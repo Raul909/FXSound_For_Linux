@@ -8,8 +8,18 @@
 use libpulse_binding as pulse;
 use libpulse_simple_binding as psimple;
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
-use std::collections::HashMap;
 use std::sync::Arc;
+
+/// Fixed-size struct for effect parameters to avoid HashMap overhead
+/// in the real-time DSP loop.
+#[derive(Default, Clone, Copy)]
+struct AudioEffects {
+    fidelity: f32,
+    dynamic: f32,
+    bass: f32,
+    ambiance: f32,
+    surround: f32,
+}
 
 const SAMPLE_RATE: u32 = 48000;
 const CHANNELS: u8 = 2;
@@ -271,7 +281,7 @@ pub struct AudioEngine {
 
     powered: bool,
     eq_bands: [f32; 10],
-    effects: HashMap<String, f32>,
+    effects: AudioEffects,
     sample_rate: u32,
 
     /// One biquad filter per EQ band — rebuilt when gain changes.
@@ -318,7 +328,7 @@ impl AudioEngine {
             complex_buffer,
             powered: true,
             eq_bands: [0.0; 10],
-            effects: HashMap::new(),
+            effects: AudioEffects::default(),
             sample_rate: SAMPLE_RATE,
             filters,
             fft_data: Arc::new(std::sync::Mutex::new(vec![0.0; 32])),
@@ -352,7 +362,17 @@ impl AudioEngine {
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
         let clamped = value.clamp(0.0, 100.0);
-        self.effects.insert(effect.to_string(), clamped);
+        match effect {
+            "fidelity" => self.effects.fidelity = clamped,
+            "dynamic" => self.effects.dynamic = clamped,
+            "bass" => self.effects.bass = clamped,
+            "ambiance" => self.effects.ambiance = clamped,
+            "surround" => self.effects.surround = clamped,
+            _ => {
+                log::warn!("Unknown effect '{}'", effect);
+                return;
+            }
+        }
         log::info!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
@@ -453,11 +473,11 @@ impl AudioEngine {
     /// boost) → 3D surround (mid/side stereo widening) → ambiance (stereo
     /// reverb mixed in as a wet send).
     fn apply_effects(&mut self, buffer: &mut [f32]) {
-        let fidelity = self.effects.get("fidelity").copied().unwrap_or(0.0);
-        let dynamic = self.effects.get("dynamic").copied().unwrap_or(0.0);
-        let bass = self.effects.get("bass").copied().unwrap_or(0.0);
-        let ambiance = self.effects.get("ambiance").copied().unwrap_or(0.0);
-        let surround = self.effects.get("surround").copied().unwrap_or(0.0);
+        let fidelity = self.effects.fidelity;
+        let dynamic = self.effects.dynamic;
+        let bass = self.effects.bass;
+        let ambiance = self.effects.ambiance;
+        let surround = self.effects.surround;
 
         let apply_fidelity = fidelity > 0.0;
         let apply_dynamic = dynamic > 0.0;
@@ -649,12 +669,11 @@ impl AudioProcessor {
             None,
             None,
         )
-        .map_err(|e| {
+        .inspect_err(|&e| {
             log::warn!(
                 "Failed to open monitor source: {}. Trying default source...",
                 e
             );
-            e
         });
 
         let input = match input {
