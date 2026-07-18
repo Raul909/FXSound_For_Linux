@@ -27,8 +27,9 @@ const EffectSliderWrapper = React.memo(function EffectSliderWrapper({ label, eff
 export default function App() {
   const [powered, setPowered] = useState(true);
   const [preset, setPreset] = useState("Music");
-  const [eq, setEq] = useState([...PRESET_EQ["Music"]]);
-  const [fx, setFx] = useState({ ...PRESET_FX["Music"] });
+  // ⚡ Bolt: Use lazy initialization to prevent object allocation on every render
+  const [eq, setEq] = useState(() => [...PRESET_EQ["Music"]]);
+  const [fx, setFx] = useState(() => ({ ...PRESET_FX["Music"] }));
   const [devices, setDevices] = useState(DEVICES);
   const [device, setDevice] = useState(DEVICES[0]);
   const [tab, setTab] = useState("eq");

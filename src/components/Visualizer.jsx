@@ -4,6 +4,11 @@ import { invoke } from "@tauri-apps/api/core";
 const BAR_COUNT = 32;
 const CANVAS_HEIGHT = 120;
 
+// ⚡ Bolt: Cache array literals for roundRect outside the animation loop
+// Prevents allocating 1920 arrays per second (32 bars * 60fps)
+const ROUND_RECT_RADII = [3, 3, 0, 0];
+const ROUND_RECT_RADII_FLAT = [1, 1, 0, 0];
+
 /**
  * Real-time audio spectrum visualizer (canvas-based).
  *
@@ -122,7 +127,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
                 ctx.fillStyle = "#1e1e2a";
                 ctx.globalAlpha = 0.3;
                 ctx.beginPath();
-                ctx.roundRect(x, y, barW, barH, [1, 1, 0, 0]);
+                ctx.roundRect(x, y, barW, barH, ROUND_RECT_RADII_FLAT);
                 ctx.fill();
                 ctx.globalAlpha = 1;
                 continue;
@@ -133,7 +138,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             ctx.globalAlpha = 0.5 + intensity * 0.5;
             ctx.fillStyle = barGrad;
             ctx.beginPath();
-            ctx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+            ctx.roundRect(x, y, barW, barH, ROUND_RECT_RADII);
             ctx.fill();
 
             // Top glow highlight on taller bars
