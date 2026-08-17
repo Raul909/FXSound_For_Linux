@@ -45,6 +45,13 @@ jobs:
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
 
+      - name: Extract release notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          awk -v ver="$VERSION" '/^## \[/ { if (p) { exit } } $0 ~ ("^## \\[" ver "\\]") { p=1; next } p { print }' CHANGELOG.md > release_notes.md
+          echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -52,7 +59,7 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/rpm/*.rpm
-          generate_release_notes: true
+          body_path: ${{ steps.release_notes.outputs.notes_file }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -89,4 +96,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy landing --project-name=fxsound-linux
+          # --branch=main forces a PRODUCTION deploy. Tag pushes check out in
+          # detached-HEAD, so without this wrangler deploys to a preview alias
+          # (head.fxsound-linux.pages.dev) and production silently stays stale.
+          command: pages deploy landing --project-name=fxsound-linux --branch=main
