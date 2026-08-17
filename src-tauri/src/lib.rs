@@ -7,11 +7,13 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 mod audio;
-use audio::{AudioEngine, AudioProcessor};
+use audio::{AudioEngine, AudioProcessor, AudioSink, OutputRouting};
 
 /// Shared application state holding the audio engine behind a mutex.
 struct AppState {
     audio_engine: Arc<Mutex<AudioEngine>>,
+    /// Lets `set_output_device` retarget the running playback stream.
+    routing: OutputRouting,
 }
 
 // ── Tauri Commands ──
@@ -108,8 +110,18 @@ fn set_power(state: State<AppState>, enabled: bool) -> Result<(), String> {
 
 /// Return the list of available audio output devices by querying PulseAudio.
 #[tauri::command]
-fn get_audio_devices() -> Result<Vec<String>, String> {
+fn get_audio_devices() -> Result<Vec<AudioSink>, String> {
     audio::get_pulse_sinks().map_err(|e| format!("Failed to get audio devices: {}", e))
+}
+
+/// Route processed audio to a specific sink, or to the system default when
+/// `sink` is `None`.
+#[tauri::command]
+fn set_output_device(state: State<AppState>, sink: Option<String>) -> Result<(), String> {
+    // An empty string is the frontend's "system default" sentinel.
+    let sink = sink.filter(|s| !s.is_empty());
+    state.routing.set_sink(sink);
+    Ok(())
 }
 
 /// Return the current FFT magnitude data for the visualizer (32 bins).
@@ -175,9 +187,10 @@ pub fn run() {
 
             // Create the shared audio engine
             let audio_engine = Arc::new(Mutex::new(AudioEngine::new()));
+            let routing = OutputRouting::default();
 
             // Start the PulseAudio capture → process → playback loop
-            let processor = AudioProcessor::new(Arc::clone(&audio_engine));
+            let processor = AudioProcessor::new(Arc::clone(&audio_engine), routing.clone());
             if let Err(e) = processor.start() {
                 log::error!("Failed to start audio processor: {}", e);
             } else {
@@ -185,7 +198,10 @@ pub fn run() {
             }
 
             // Store state so Tauri commands can access the engine
-            app.manage(AppState { audio_engine });
+            app.manage(AppState {
+                audio_engine,
+                routing,
+            });
 
             Ok(())
         })
@@ -195,6 +211,7 @@ pub fn run() {
             apply_preset_state,
             set_power,
             get_audio_devices,
+            set_output_device,
             get_visualizer_data,
         ])
         .run(tauri::generate_context!())
