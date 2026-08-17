@@ -5,11 +5,20 @@
    Uses CSS custom properties for easy theming.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Fonts are resolved locally — no webfont is fetched.
+   The previous @import pulled Inter from fonts.googleapis.com on every launch,
+   which a desktop audio app should never need: it fails under strict snap
+   confinement (no network plug) and offline, delayed first paint while it
+   timed out, and phoned home from a local-only tool. Inter is still used when
+   the user has it installed; otherwise we fall through to the desktop's own UI
+   font (Cantarell on GNOME, Noto Sans / DejaVu elsewhere). */
 
 /* ---- Design Tokens ---- */
 
 :root {
+  --font-ui: 'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI',
+             Cantarell, 'Noto Sans', 'DejaVu Sans', sans-serif;
+
   --bg-deepest:   #030305;
   --bg-deep:      #050507;
   --bg-dark:      #0a0a0f;
@@ -69,7 +78,7 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'Segoe UI', -apple-system, sans-serif;
+  font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-deepest);
@@ -91,13 +100,22 @@ select option {
   min-height: 100vh;
   background: var(--bg-deepest);
   display: flex;
-  align-items: center;
   justify-content: center;
   padding: 20px;
+  /* A tiling WM or a short screen can force the window below its minimum, so
+     let the panel scroll rather than hiding the status bar off the bottom. */
+  overflow-y: auto;
 }
 
 .app-window {
   width: 480px;
+  /* Tiling window managers (i3/sway/Hyprland) and small displays can force a
+     narrower viewport than the window we ask for, so never overflow it. */
+  max-width: 100%;
+  flex-shrink: 0;
+  /* Centres vertically like `align-items: center` would, but collapses to zero
+     when space runs out instead of pushing the top of the panel out of reach. */
+  margin: auto;
   background: var(--bg-dark);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
@@ -211,7 +229,7 @@ select option {
   font-size: 12px;
   color: var(--text-light);
   outline: none;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -265,6 +283,13 @@ select option {
   z-index: 0;
 }
 
+/* Keep the canvas above the glow. As a positioned element the ::before layer
+   otherwise painted over the bars instead of behind them. */
+.visualizer canvas {
+  position: relative;
+  z-index: 1;
+}
+
 
 /* ---- Tabs ---- */
 
@@ -283,7 +308,7 @@ select option {
   color: var(--text-dim);
   font-size: 11px;
   letter-spacing: 1.8px;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
   cursor: pointer;
   font-weight: 600;
   transition: all 0.25s ease;
@@ -464,6 +489,9 @@ select option {
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+  /* Dragging a slider used to highlight its label text, since the drag is
+     tracked on window mousemove rather than by a native input. */
+  user-select: none;
 }
 
 .effect-slider__label {
@@ -604,4 +632,20 @@ select option {
   margin-left: 8px;
   color: var(--text-dim);
   font-weight: 500;
+}
+
+
+/* ---- Reduced Motion ---- */
+
+/* The power button and status dot pulse continuously. Honour the desktop's
+   "reduce animation" setting, which GTK/WebKitGTK maps to this query. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -24,6 +24,13 @@
   <developer_name>FXSound Linux Contributors</developer_name>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.4" date="2026-08-17">
+      <description>
+        <p>Audio quality and correctness release. HyperBass is now a real low-shelf filter rather than a broadband volume boost; Dynamic Boost is a proper compressor with makeup gain instead of a waveshaper that quietly attenuated and distorted; Fidelity enhances treble instead of colouring bass; and the block-based limiter that caused pumping on loud material has been replaced with a sample-accurate one.</p>
+        <p>The app now applies its startup preset to the audio engine, so the sliders match what you hear from the first second. The Output Device dropdown actually routes audio, and the visualizer always shows the real processed spectrum rather than falling back to an invented animation.</p>
+        <p>Fixes blurry rendering on HiDPI displays, a crash on WebKitGTK older than 2.40, a window that did not fit 1366x768 screens, and the launch-time webfont fetch that failed under strict snap confinement.</p>
+      </description>
+    </release>
     <release version="1.1.3" date="2026-07-14">
       <description>
         <p>Fix the app aborting with EGL_BAD_PARAMETER (blank window) on machines with no usable GPU acceleration, such as VirtualBox/VMware VMs. WebKitGTK creates a shared EGL display at startup regardless of compositing mode, so the app now defaults to Mesa software rendering (LIBGL_ALWAYS_SOFTWARE=1) so that display always initializes — completing the 1.1.1/1.1.2 rendering fixes.</p>

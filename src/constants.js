@@ -1,12 +1,19 @@
 /**
  * Audio preset and configuration constants for FXSound.
  *
- * PRESETS       — ordered list of preset names shown in the dropdown
- * PRESET_EQ    — 10-band EQ gain values (dB) for each preset
- * PRESET_FX    — effect intensity (0–100) for each preset
- * EQ_BANDS     — frequency labels for the 10 EQ sliders
- * DEVICES      — available output devices
+ * PRESETS        — ordered list of preset names shown in the dropdown
+ * PRESET_EQ      — 10-band EQ gain values (dB) for each preset
+ * PRESET_FX      — effect intensity (0–100) for each preset
+ * EQ_BANDS       — frequency labels for the 10 EQ sliders
+ * INITIAL_PRESET — preset loaded at startup, in the UI and in the engine
+ * APP_VERSION    — injected from package.json by Vite
+ *
+ * The preset tables are mirrored by the headroom test in
+ * `src-tauri/src/audio.rs`; keep the two in sync when editing them.
  */
+
+/* global __APP_VERSION__ */
+export const APP_VERSION = __APP_VERSION__;
 
 // Preset names displayed in the dropdown selector
 export const PRESETS = [
@@ -54,11 +61,6 @@ export const PRESET_FX = {
 // Frequency labels for the 10-band EQ (displayed below each slider)
 export const EQ_BANDS = ["32", "64", "125", "250", "500", "1K", "2K", "4K", "8K", "16K"];
 
-// Available audio output devices
-export const DEVICES = [
-    "Built-in Speakers",
-    "Headphones (3.5mm)",
-    "USB Audio Device",
-    "HDMI Audio",
-    "Bluetooth Headset",
-];
+// Preset selected on launch. App.jsx seeds both its own state and the audio
+// engine from this, so the two can never disagree.
+export const INITIAL_PRESET = "Music";
