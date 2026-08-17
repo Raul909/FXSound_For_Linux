@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.4] - 2026-08-17
+
+### Fixed
+- **Startup no longer lies about what you are hearing.** The window opened on the Music preset while the audio engine was still flat with every effect at zero, so the sliders described a curve that was never applied until you touched a control. The engine is now seeded with the startup preset.
+- **HyperBass actually boosts bass.** It applied a flat broadband gain — a volume knob that changed no tonal balance at all. It is now a low-shelf filter at 110 Hz (measured +5.4 dB at 60 Hz, ±0 dB at 8 kHz at full setting).
+- **Dynamic Boost no longer makes audio quieter and grittier.** It was an instantaneous hard-knee waveshaper with no envelope and no makeup gain, so raising it attenuated the signal and added harmonic distortion. It is now a proper compressor with attack/release and makeup gain (+2.7 dB at full setting).
+- **Removed pumping on loud material.** The "limiter" normalised each 1024-sample block by that block's own peak, stepping the gain at every block boundary — roughly 90 Hz amplitude modulation on anything driven past 0 dBFS. Replaced with a sample-accurate limiter whose envelope persists across buffers.
+- **Fidelity now enhances treble instead of colouring bass.** It saturated the full-band signal; it now drives only the band above 3 kHz (measured ±0 dB at 80 Hz, +5.3 dB at 9 kHz).
+- **The Output Device dropdown works.** Selecting a device only changed a React value — playback always went to the system default. It now retargets the live playback stream, lists real sink names, and preselects the sink audio is actually on.
+- **The visualizer shows real audio.** It only used the engine's spectrum if audio happened to already be playing loudly at launch; otherwise it requested a screen-capture stream and, failing that, animated an invented sine wave. It now always reads the engine.
+- **The visualizer no longer freezes.** Bars latched at their last height when playback stopped or power was switched off; they now fall to the floor.
+- Fixed the spectrum smearing across neighbouring bars (an FFT window function is now applied).
+- Fixed blurry visualizer rendering on HiDPI and fractionally-scaled desktops.
+- Fixed the visualizer crashing on WebKitGTK older than 2.40, which lacks `Canvas.roundRect`.
+- Fixed the panel being squeezed 40 px narrower than designed, and the window not fitting on 1366×768 screens. The window is now resizable with sensible minimums.
+- Removed the fabricated fallback device list ("Built-in Speakers", "Headphones (3.5mm)"…) shown when detection failed.
+- Fixed effect slider labels highlighting while dragging.
+- Fixed the visualizer's glow overlay painting on top of the bars instead of behind them.
+
+### Changed
+- **No webfont is fetched at launch.** The UI pulled Inter from `fonts.googleapis.com` on every start, which fails under strict snap confinement and offline, delayed first paint while it timed out, and phoned home from a local-only tool. Fonts now resolve locally, and the content security policy no longer allows external hosts.
+- Reduced-motion preferences from the desktop are now honoured.
+- Denormal protection added to the reverb and EQ feedback paths, avoiding CPU spikes as tails decay on x86.
+- The version in the status bar is injected from `package.json` at build time — it had drifted a release behind.
+
 ## [1.1.3] - 2026-07-14
 
 ### Fixed
