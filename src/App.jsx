@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { call } from "./tauri";
 
-import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, DEVICES } from "./constants";
+import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, INITIAL_PRESET, APP_VERSION } from "./constants";
 import EQBand from "./components/EQBand";
 import EffectSlider from "./components/EffectSlider";
 import Visualizer from "./components/Visualizer";
@@ -26,24 +26,40 @@ const EffectSliderWrapper = React.memo(function EffectSliderWrapper({ label, eff
  */
 export default function App() {
   const [powered, setPowered] = useState(true);
-  const [preset, setPreset] = useState("Music");
-  const [eq, setEq] = useState([...PRESET_EQ["Music"]]);
-  const [fx, setFx] = useState({ ...PRESET_FX["Music"] });
-  const [devices, setDevices] = useState(DEVICES);
-  const [device, setDevice] = useState(DEVICES[0]);
+  const [preset, setPreset] = useState(INITIAL_PRESET);
+  const [eq, setEq] = useState([...PRESET_EQ[INITIAL_PRESET]]);
+  const [fx, setFx] = useState({ ...PRESET_FX[INITIAL_PRESET] });
+  // Real sinks reported by PulseAudio: { name, description, is_default }.
+  // Empty until detection completes — never populated with invented devices.
+  const [devices, setDevices] = useState([]);
+  const [device, setDevice] = useState("");
   const [tab, setTab] = useState("eq");
+
+  // Push the starting preset down to the engine.
+  //
+  // The engine boots with a flat EQ and no effects, while the UI boots showing
+  // INITIAL_PRESET. Without this the sliders described a curve that was never
+  // actually applied until the user touched something.
+  useEffect(() => {
+    call("apply_preset_state", {
+      eqBands: PRESET_EQ[INITIAL_PRESET],
+      effects: PRESET_FX[INITIAL_PRESET],
+    }).catch(console.error);
+  }, []);
 
   // Fetch real audio output devices from the backend on mount
   useEffect(() => {
-    invoke("get_audio_devices")
+    call("get_audio_devices")
       .then((detected) => {
-        if (detected && detected.length > 0) {
+        if (Array.isArray(detected) && detected.length > 0) {
           setDevices(detected);
-          setDevice(detected[0]);
+          // Open on the sink audio is actually playing through.
+          const active = detected.find((d) => d.is_default) ?? detected[0];
+          setDevice(active.name);
         }
       })
       .catch((err) => {
-        console.warn("Could not detect audio devices, using defaults:", err);
+        console.warn("Could not detect audio devices:", err);
       });
   }, []);
 
@@ -61,7 +77,7 @@ export default function App() {
     setFx({ ...PRESET_FX[name] });
 
     // Send all EQ band values and effect values to backend in one batch
-    invoke("apply_preset_state", {
+    call("apply_preset_state", {
       eqBands: PRESET_EQ[name],
       effects: PRESET_FX[name]
     }).catch(console.error);
@@ -69,7 +85,7 @@ export default function App() {
 
   // Sync power state to the Rust backend whenever it changes
   useEffect(() => {
-    invoke("set_power", { enabled: powered }).catch(console.error);
+    call("set_power", { enabled: powered }).catch(console.error);
   }, [powered]);
 
   /**
@@ -83,7 +99,7 @@ export default function App() {
       return newEq;
     });
     setPreset("Custom");
-    invoke("set_eq_band", { band: index, gain: value }).catch(console.error);
+    call("set_eq_band", { band: index, gain: value }).catch(console.error);
   }, []);
 
   /**
@@ -93,28 +109,44 @@ export default function App() {
   const updateEffect = useCallback((key, value) => {
     setFx((prev) => ({ ...prev, [key]: value }));
     setPreset("Custom");
-    invoke("set_effect", { effect: key, value }).catch(console.error);
+    call("set_effect", { effect: key, value }).catch(console.error);
+  }, []);
+
+  /**
+   * Switch the output sink — this actually retargets the playback stream in
+   * the backend. Previously the selection only changed local React state, so
+   * the dropdown looked functional but audio always went to the system default.
+   */
+  const changeDevice = useCallback((sinkName) => {
+    setDevice(sinkName);
+    call("set_output_device", { sink: sinkName || null }).catch(console.error);
   }, []);
 
   // ---------- Dropdown Data ----------
 
-  // Configuration for the two dropdown selectors (preset + output device)
+  // Configuration for the two dropdown selectors (preset + output device).
+  // Options are {value, label} pairs: sinks are selected by their PulseAudio
+  // name but displayed by their human-readable description.
   const dropdowns = useMemo(() => [
     {
       label: "PRESET",
       value: preset,
-      options: PRESETS,
+      options: [
+        ...PRESETS.map((name) => ({ value: name, label: name })),
+        // Shown only once the user has moved a slider off a named preset.
+        ...(preset === "Custom" ? [{ value: "Custom", label: "Custom" }] : []),
+      ],
       onChange: applyPreset,
-      showCustom: true,
     },
     {
       label: "OUTPUT DEVICE",
       value: device,
-      options: devices,
-      onChange: setDevice,
-      showCustom: false,
+      options: devices.length
+        ? devices.map((d) => ({ value: d.name, label: d.description }))
+        : [{ value: "", label: "System Default" }],
+      onChange: changeDevice,
     },
-  ], [preset, device, devices, applyPreset]);
+  ], [preset, device, devices, applyPreset, changeDevice]);
 
   // Effect sliders with display labels and their keys in PRESET_FX
   const effectSliders = useMemo(() => [
@@ -125,11 +157,12 @@ export default function App() {
     { label: "HyperBass", key: "bass" },
   ], []);
 
-  // Truncate long device names for the status bar display
+  // Truncate the selected device's display name for the status bar
   const shortDeviceName = useMemo(() => {
-    if (!device) return "No Device";
-    return device.length > 28 ? device.substring(0, 26) + "…" : device;
-  }, [device]);
+    const name = devices.find((d) => d.name === device)?.description;
+    if (!name) return "System Default";
+    return name.length > 28 ? name.substring(0, 26) + "…" : name;
+  }, [device, devices]);
 
   // ---------- Render ----------
 
@@ -157,7 +190,7 @@ export default function App() {
           </div>
 
           <div className="header__dropdowns">
-            {dropdowns.map(({ label, value: val, options, onChange, showCustom }) => (
+            {dropdowns.map(({ label, value: val, options, onChange }) => (
               <div key={label} className="dropdown">
                 <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
                 <div className="dropdown__wrapper">
@@ -169,10 +202,9 @@ export default function App() {
                     title={!powered ? "Power on to adjust" : undefined}
                     aria-labelledby={`dropdown-label-${label.replace(/\s+/g, "-")}`}
                   >
-                    {options.map((opt) => (
-                      <option key={opt}>{opt}</option>
+                    {options.map(({ value: optValue, label: optLabel }) => (
+                      <option key={optValue} value={optValue}>{optLabel}</option>
                     ))}
-                    {showCustom && <option value="Custom">Custom</option>}
                   </select>
                   <svg aria-hidden="true" className="dropdown__arrow" width="10" height="6" viewBox="0 0 10 6">
                     <path d="M0 0l5 6 5-6z" fill={powered ? "#e63462" : "#555"} />
@@ -274,7 +306,7 @@ export default function App() {
           <span className="status-bar__info">{shortDeviceName} · 48kHz</span>
           <span className="status-bar__preset">
             {preset.toUpperCase()}
-            <span className="status-bar__version">v1.1.2</span>
+            <span className="status-bar__version">v{APP_VERSION}</span>
           </span>
         </div>
 
