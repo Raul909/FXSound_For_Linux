@@ -25,6 +25,9 @@ fn set_eq_band(state: State<AppState>, band: usize, gain: f32) -> Result<(), Str
     if !gain.is_finite() {
         return Err("Invalid gain value".to_string());
     }
+    if band >= 10 {
+        return Err("Invalid EQ band index".to_string());
+    }
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
     engine.set_eq_band(band, gain);
     Ok(())
@@ -64,38 +67,40 @@ fn apply_preset_state(
     eq_bands: [f32; 10],
     effects: PresetEffects,
 ) -> Result<(), String> {
+    // Input validation: ensure all provided values are finite before applying any state
+    for &gain in &eq_bands {
+        if !gain.is_finite() {
+            return Err("Invalid EQ gain value".to_string());
+        }
+    }
+    if let Some(val) = effects.fidelity { if !val.is_finite() { return Err("Invalid effect value".to_string()); } }
+    if let Some(val) = effects.ambiance { if !val.is_finite() { return Err("Invalid effect value".to_string()); } }
+    if let Some(val) = effects.dynamic { if !val.is_finite() { return Err("Invalid effect value".to_string()); } }
+    if let Some(val) = effects.surround { if !val.is_finite() { return Err("Invalid effect value".to_string()); } }
+    if let Some(val) = effects.bass { if !val.is_finite() { return Err("Invalid effect value".to_string()); } }
+
     let mut engine = state.audio_engine.lock().unwrap_or_else(|e| e.into_inner());
 
     for (band, &gain) in eq_bands.iter().enumerate() {
-        if gain.is_finite() {
+        if band < 10 {
             engine.set_eq_band(band, gain);
         }
     }
 
     if let Some(val) = effects.fidelity {
-        if val.is_finite() {
-            engine.set_effect("fidelity", val);
-        }
+        engine.set_effect("fidelity", val);
     }
     if let Some(val) = effects.ambiance {
-        if val.is_finite() {
-            engine.set_effect("ambiance", val);
-        }
+        engine.set_effect("ambiance", val);
     }
     if let Some(val) = effects.dynamic {
-        if val.is_finite() {
-            engine.set_effect("dynamic", val);
-        }
+        engine.set_effect("dynamic", val);
     }
     if let Some(val) = effects.surround {
-        if val.is_finite() {
-            engine.set_effect("surround", val);
-        }
+        engine.set_effect("surround", val);
     }
     if let Some(val) = effects.bass {
-        if val.is_finite() {
-            engine.set_effect("bass", val);
-        }
+        engine.set_effect("bass", val);
     }
     Ok(())
 }
