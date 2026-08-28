@@ -192,15 +192,15 @@ export default function App() {
           <div className="header__dropdowns">
             {dropdowns.map(({ label, value: val, options, onChange }) => (
               <div key={label} className="dropdown">
-                <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
+                <label htmlFor={`dropdown-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</label>
                 <div className="dropdown__wrapper">
                   <select
+                    id={`dropdown-${label.replace(/\s+/g, "-")}`}
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
                     className="dropdown__select"
                     title={!powered ? "Power on to adjust" : undefined}
-                    aria-labelledby={`dropdown-label-${label.replace(/\s+/g, "-")}`}
                   >
                     {options.map(({ value: optValue, label: optLabel }) => (
                       <option key={optValue} value={optValue}>{optLabel}</option>
