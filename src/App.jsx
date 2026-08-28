@@ -192,9 +192,10 @@ export default function App() {
           <div className="header__dropdowns">
             {dropdowns.map(({ label, value: val, options, onChange }) => (
               <div key={label} className="dropdown">
-                <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
+                <label htmlFor={`dropdown-select-${label.replace(/\s+/g, "-")}`} id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</label>
                 <div className="dropdown__wrapper">
                   <select
+                    id={`dropdown-select-${label.replace(/\s+/g, "-")}`}
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={!powered}
