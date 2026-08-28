@@ -599,9 +599,16 @@ impl AudioEngine {
         }
 
         // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
+        // Optimization: short-circuit the sum of squares calculation as soon as the threshold is met
+        let threshold = 0.000001 * input.len() as f32;
+        let mut sum_sq = 0.0;
+        for &x in input.iter() {
+            sum_sq += x * x;
+            if sum_sq >= threshold {
+                break;
+            }
+        }
+        if sum_sq < threshold {
             output.fill(0.0);
             self.decay_fft();
             return;
