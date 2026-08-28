@@ -599,9 +599,9 @@ impl AudioEngine {
         }
 
         // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
+        // Optimization: Use `!any` to short-circuit the silence check as soon as we see loud audio,
+        // making this O(1) in the common case (music playing), rather than computing full buffer RMS O(N).
+        if !input.iter().any(|&x| x.abs() > 0.001) {
             output.fill(0.0);
             self.decay_fft();
             return;
@@ -627,8 +627,6 @@ impl AudioEngine {
     /// Each filter only affects frequencies around its center frequency,
     /// so adjusting the 32 Hz band won't change treble, and vice versa.
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
-        output.copy_from_slice(input);
-
         // Pre-compute active bands to avoid branching in the inner loop
         let mut active_bands = [0usize; 10];
         let mut active_count = 0;
@@ -640,13 +638,20 @@ impl AudioEngine {
             }
         }
 
+        // Fast path: if no EQ bands are active, just copy and return
+        if active_count == 0 {
+            output.copy_from_slice(input);
+            return;
+        }
+
         let active_bands_slice = &active_bands[..active_count];
 
         // Process each sample through all active biquad filters
-        // Interleaved stereo: chunk[0] = left, chunk[1] = right
-        for chunk in output.chunks_exact_mut(CHANNELS as usize) {
-            let mut l = chunk[0];
-            let mut r = chunk[1];
+        // Interleaved stereo: Read directly from input, write to output
+        // This avoids an upfront copy_from_slice O(N) when EQ is active
+        for (in_chunk, out_chunk) in input.chunks_exact(CHANNELS as usize).zip(output.chunks_exact_mut(CHANNELS as usize)) {
+            let mut l = in_chunk[0];
+            let mut r = in_chunk[1];
 
             for &band in active_bands_slice {
                 // Process left channel
@@ -655,8 +660,8 @@ impl AudioEngine {
                 r = self.filters[band].process(r, 1);
             }
 
-            chunk[0] = l;
-            chunk[1] = r;
+            out_chunk[0] = l;
+            out_chunk[1] = r;
         }
     }
 
