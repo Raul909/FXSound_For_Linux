@@ -89,6 +89,7 @@ cat << 'EOF'
   ./setup-deps.sh          Install system dependencies
   ./test-locally.sh        Check system readiness
   ./test-audio.sh          Test audio system
+  ./reset-audio.sh         Restore normal audio after a crash
   ./build-release.sh       Build production version
   ./verify-version.sh      Verify version consistency
   ./version-info.sh        Display version info
