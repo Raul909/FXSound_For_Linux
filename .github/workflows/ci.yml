@@ -1,0 +1,175 @@
+name: CI
+
+# Every pull request and every push to main. Releases (release.yml) only run
+# on tags, so this is where problems get caught before anything ships.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Lint, build, unit tests, version consistency ─────────────────────────
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libpulse-dev libssl-dev
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      - name: Formatting
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+
+      - name: Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+
+      - name: Unit tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
+
+      - name: Version consistency
+        run: ./scripts/verify-version.sh
+
+  # ── End-to-end routing against real audio servers ────────────────────────
+  # Catches what unit tests cannot: the 1.1.4 startup freeze (#510) and the
+  # doubling/feedback loop (#511). See tests/audio-routing/README.md.
+  audio-routing:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        server: [pw, pa]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install build and audio dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
+            libpulse-dev libssl-dev pulseaudio-utils dbus-x11 sox python3-numpy \
+            xvfb x11-utils xdotool imagemagick
+          if [ "${{ matrix.server }}" = pw ]; then
+            sudo apt-get install -y pipewire pipewire-pulse wireplumber pipewire-bin
+          else
+            sudo apt-get install -y pulseaudio
+          fi
+
+      - run: npm ci && npm run build
+
+      - name: Build the app
+        run: cargo build --manifest-path src-tauri/Cargo.toml --features tauri/custom-protocol
+
+      - name: Routing tests (${{ matrix.server }})
+        run: tests/audio-routing/verify.sh ${{ matrix.server }}
+
+      - name: Upload app log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routing-${{ matrix.server }}-log
+          path: /tmp/app.log
+          retention-days: 7
+
+  # ── Release bundles: build them the way release.yml does ─────────────────
+  # The .deb/.rpm/AppImage are otherwise only built on a tag push, after it
+  # is too late to fix a packaging mistake.
+  bundles:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libpulse-dev rpm
+
+      - run: npm ci
+
+      - name: Build bundles
+        run: npm run tauri:build
+
+      - name: Check declared dependencies
+        run: |
+          DEB=$(ls src-tauri/target/release/bundle/deb/*.deb)
+          RPM=$(ls src-tauri/target/release/bundle/rpm/*.rpm)
+          dpkg-deb -f "$DEB" Depends | tee /dev/stderr | grep -q 'libpulse0'
+          rpm -qpR "$RPM" | tee /dev/stderr | grep -q 'libpulse.so.0()(64bit)'
+          ls -la src-tauri/target/release/bundle/appimage/*.AppImage
+
+  # ── Snap: build it, then launch it under real strict confinement ─────────
+  # 1.1.4's snap aborted at launch (#511): it bundled a second Mesa that
+  # clashed with the GNOME platform's. Only a real install shows that.
+  snap:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build snap
+        uses: snapcore/action-build@v1
+        id: snapcraft
+
+      - name: Install test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pipewire pipewire-pulse wireplumber pipewire-bin \
+            pulseaudio-utils dbus-user-session sox python3-numpy xvfb x11-utils imagemagick
+
+      - name: Smoke-test the snap
+        run: SHOTS="$PWD/snap-smoke" tests/snap-smoke.sh "${{ steps.snapcraft.outputs.snap }}"
+
+      - name: Upload snap and smoke-test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snap
+          path: |
+            ${{ steps.snapcraft.outputs.snap }}
+            snap-smoke/
+          retention-days: 7

@@ -48,7 +48,7 @@
 
 ## ✨ Why FXSound for Linux?
 
-- **System-wide, not per-app.** Enhances everything your system plays — browser, music player, games — in real time via PipeWire / PulseAudio.
+- **System-wide, not per-app.** Adds an "FXSound" output device and enhances everything your system plays through it — browser, music player, games — in real time via PipeWire / PulseAudio.
 - **Real DSP, not a mockup.** A Rust audio engine with genuine biquad EQ filters, a full effects chain, a hard limiter, and FFT spectrum analysis. See [How it works](#-how-it-works).
 - **Lightweight & native.** Built with Tauri (Rust + React) — a small binary with low memory and CPU use.
 - **Private & free forever.** MIT-licensed. No ads, no accounts, no telemetry.
@@ -60,6 +60,7 @@
 - **10 built-in presets** — Music, Movies, Gaming, Podcast, Bass Boost, Vocal Boost, Deep Bass, Treble Boost, Night Mode, Flat — plus fully custom.
 - **Real-time visualizer** — 32-bin FFT spectrum with smooth animation.
 - **One-click bypass** — instant A/B with the power toggle.
+- **Remembers your setup** — EQ, effects, preset and output device are restored at launch; the output follows your sound settings and hot-plugged headphones.
 - **Universal packaging** — AppImage, `.deb`, `.rpm`, Snap, and AUR.
 
 ---
@@ -75,6 +76,7 @@ Grab the right build for your system from the landing page:
 ### 📦 Snap Store (Ubuntu, Linux Mint, etc.)
 ```bash
 sudo snap install fxsound-linux
+sudo snap connect fxsound-linux:audio-record   # needed on some systems to process system audio
 ```
 
 ### 🐧 AppImage (Universal Linux — works everywhere, incl. Arch)
@@ -110,9 +112,9 @@ See the [Comprehensive Guide](./GUIDE.md) for distro-specific dependencies and t
 
 ## 🧠 How it works
 
-The React UI sends every EQ and effect change to the Rust backend over Tauri IPC. The engine ([`src-tauri/src/audio.rs`](./src-tauri/src/audio.rs)) captures system audio, runs it through ten biquad EQ filters, the effects chain (fidelity → dynamic → bass → 3D surround → ambiance reverb) and a limiter, then plays it back — while updating a shared FFT buffer that drives the visualizer.
+While it runs, FXSound adds an output device called **FXSound** and makes it the default, so applications play into it. The routing code ([`src-tauri/src/pulse.rs`](./src-tauri/src/pulse.rs)) records that device, runs the audio through the engine ([`src-tauri/src/audio.rs`](./src-tauri/src/audio.rs)) — ten biquad EQ filters, the effects chain (HyperBass → Fidelity → 3D Surround → Ambiance → Dynamic Boost) and a limiter — and plays the result on your real speakers or headphones, while feeding the FFT that drives the visualizer. When FXSound quits, the device is removed and your previous output is restored.
 
-It's **real audio processing**, not a UI demo, and it's unit-tested (`cargo test`) end to end.
+It's **real audio processing**, not a UI demo. The DSP is unit-tested (`cargo test`), and every pull request runs end-to-end routing tests against real PipeWire and PulseAudio servers ([`tests/audio-routing`](./tests/audio-routing)).
 
 ---
 
@@ -128,7 +130,7 @@ Good first areas: **presets**, **UI polish**, and **distro packaging**. Browse t
 
 ## 🗺️ Roadmap
 
-See the [CHANGELOG](./CHANGELOG.md). On deck: **virtual-sink capture** (true system-wide processing without audio doubling), **advanced HRTF 3D surround**, **per-app audio routing**, and **native PipeWire** support.
+See the [CHANGELOG](./CHANGELOG.md). On deck: **advanced HRTF 3D surround**, **per-app audio routing**, a **tray icon** to keep FXSound running without its window, and **native PipeWire** support.
 
 ---
 

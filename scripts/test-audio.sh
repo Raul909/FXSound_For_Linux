@@ -5,14 +5,15 @@ echo "🎵 FXSound Audio Test"
 echo "===================="
 echo ""
 
-# Check PulseAudio
-echo "1. Checking PulseAudio..."
-if pulseaudio --check; then
-    echo "   ✅ PulseAudio is running"
+# Check the audio server. Most distros now run PipeWire with its PulseAudio
+# compatibility layer, which `pulseaudio --check` does not detect — and
+# starting a real PulseAudio daemon alongside it would break audio.
+echo "1. Checking the audio server..."
+if pactl info >/dev/null 2>&1; then
+    echo "   ✅ $(pactl info | sed -n 's/^Server Name: //p')"
 else
-    echo "   ❌ PulseAudio not running"
-    echo "   Starting PulseAudio..."
-    pulseaudio --start
+    echo "   ❌ No PulseAudio/PipeWire server answering"
+    echo "   PipeWire: systemctl --user restart pipewire pipewire-pulse wireplumber"
 fi
 echo ""
 

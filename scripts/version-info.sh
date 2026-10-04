@@ -78,23 +78,16 @@ Current Version: ${VERSION}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️  Manual steps after each release:
+✅ After the tag push, everything is automatic — verify it landed:
 
-  Until the pending release.yml changes land (they need a workflow-scoped
-  token to push), do these by hand:
+  • GitHub Release:  gh release view v${VERSION}
+  • Snap Store:      snap info fxsound-linux | grep stable
+  • Landing page:    curl -s https://fxsound-linux.pages.dev/ | grep -o 'fxsound-linux_[0-9.]*_amd64.AppImage' | sort -u
 
-  • Production landing page — the CI deploy runs without --branch, and a tag
-    checks out detached-HEAD, so wrangler publishes to a preview alias and
-    production silently stays stale:
-
+  The landing deploy runs with --branch=main (a production deploy) and the
+  release notes come from this version's CHANGELOG section. If production
+  ever looks stale, the fallback is:
       npx wrangler pages deploy landing --project-name=fxsound-linux --branch=main
-
-    Run it AFTER the release assets publish, then verify:
-      curl -s https://fxsound-linux.pages.dev/ | grep AppImage
-
-  • Release notes — replace the auto-generated notes with the CHANGELOG entry:
-
-      gh release edit v${VERSION} --notes-file <changelog-section>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

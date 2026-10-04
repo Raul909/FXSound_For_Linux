@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { call } from "./tauri";
+import { call, subscribe } from "./tauri";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, INITIAL_PRESET, APP_VERSION } from "./constants";
 import EQBand from "./components/EQBand";
@@ -29,38 +29,53 @@ export default function App() {
   const [preset, setPreset] = useState(INITIAL_PRESET);
   const [eq, setEq] = useState([...PRESET_EQ[INITIAL_PRESET]]);
   const [fx, setFx] = useState({ ...PRESET_FX[INITIAL_PRESET] });
-  // Real sinks reported by PulseAudio: { name, description, is_default }.
-  // Empty until detection completes — never populated with invented devices.
-  const [devices, setDevices] = useState([]);
-  const [device, setDevice] = useState("");
+  // Live routing state from the backend: { state, message, devices, output }.
+  // Devices are real sinks ({ name, description }) — never invented ones.
+  const [audio, setAudio] = useState({ state: "starting", message: null, devices: [], output: null });
   const [tab, setTab] = useState("eq");
 
-  // Push the starting preset down to the engine.
-  //
-  // The engine boots with a flat EQ and no effects, while the UI boots showing
-  // INITIAL_PRESET. Without this the sliders described a curve that was never
-  // actually applied until the user touched something.
+  // Restore the last session. The backend has already applied these values to
+  // the engine before any audio flowed; this only brings the controls in line.
+  // On first launch there is nothing saved, so apply the default preset.
   useEffect(() => {
-    call("apply_preset_state", {
-      eqBands: PRESET_EQ[INITIAL_PRESET],
-      effects: PRESET_FX[INITIAL_PRESET],
-    }).catch(console.error);
-  }, []);
-
-  // Fetch real audio output devices from the backend on mount
-  useEffect(() => {
-    call("get_audio_devices")
-      .then((detected) => {
-        if (Array.isArray(detected) && detected.length > 0) {
-          setDevices(detected);
-          // Open on the sink audio is actually playing through.
-          const active = detected.find((d) => d.is_default) ?? detected[0];
-          setDevice(active.name);
+    let cancelled = false;
+    call("get_settings")
+      .then((saved) => {
+        if (cancelled) return;
+        if (saved) {
+          const known = saved.preset === "Custom" || PRESET_EQ[saved.preset];
+          setPowered(saved.powered);
+          setPreset(known ? saved.preset : "Custom");
+          setEq([...saved.eq]);
+          setFx({ ...PRESET_FX.Flat, ...saved.effects });
+        } else {
+          call("apply_preset_state", {
+            eqBands: PRESET_EQ[INITIAL_PRESET],
+            effects: PRESET_FX[INITIAL_PRESET],
+            preset: INITIAL_PRESET,
+          }).catch(console.error);
         }
       })
-      .catch((err) => {
-        console.warn("Could not detect audio devices:", err);
-      });
+      .catch((err) => console.warn("Could not load settings:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Follow the audio routing: output devices appear and disappear as they are
+  // plugged in, and the backend reports problems instead of hanging.
+  useEffect(() => {
+    let cancelled = false;
+    call("get_audio_status")
+      .then((status) => {
+        if (!cancelled && status) setAudio(status);
+      })
+      .catch(() => {});
+    const stop = subscribe("audio-status", (status) => setAudio(status));
+    return () => {
+      cancelled = true;
+      stop();
+    };
   }, []);
 
   // ---------- Preset & Power Logic ----------
@@ -79,13 +94,20 @@ export default function App() {
     // Send all EQ band values and effect values to backend in one batch
     call("apply_preset_state", {
       eqBands: PRESET_EQ[name],
-      effects: PRESET_FX[name]
+      effects: PRESET_FX[name],
+      preset: name,
     }).catch(console.error);
   }, []);
 
-  // Sync power state to the Rust backend whenever it changes
-  useEffect(() => {
-    call("set_power", { enabled: powered }).catch(console.error);
+  /**
+   * Toggle processing. Off is a bypass: audio keeps playing, unprocessed.
+   * Sent from the click itself rather than from an effect on `powered`, which
+   * fired on mount and would overwrite a saved "off" with the initial "on".
+   */
+  const togglePower = useCallback(() => {
+    const next = !powered;
+    setPowered(next);
+    call("set_power", { enabled: next }).catch(console.error);
   }, [powered]);
 
   /**
@@ -113,12 +135,11 @@ export default function App() {
   }, []);
 
   /**
-   * Switch the output sink — this actually retargets the playback stream in
-   * the backend. Previously the selection only changed local React state, so
-   * the dropdown looked functional but audio always went to the system default.
+   * Play to a different output device. The backend moves FXSound's output
+   * there and remembers the choice for next time.
    */
   const changeDevice = useCallback((sinkName) => {
-    setDevice(sinkName);
+    setAudio((prev) => ({ ...prev, output: sinkName }));
     call("set_output_device", { sink: sinkName || null }).catch(console.error);
   }, []);
 
@@ -137,16 +158,21 @@ export default function App() {
         ...(preset === "Custom" ? [{ value: "Custom", label: "Custom" }] : []),
       ],
       onChange: applyPreset,
+      // Like the sliders, presets only apply while processing is on.
+      disabled: !powered,
     },
     {
       label: "OUTPUT DEVICE",
-      value: device,
-      options: devices.length
-        ? devices.map((d) => ({ value: d.name, label: d.description }))
-        : [{ value: "", label: "System Default" }],
+      value: audio.output ?? "",
+      options: audio.devices.length
+        ? audio.devices.map((d) => ({ value: d.name, label: d.description }))
+        : [{ value: "", label: audio.state === "starting" ? "Detecting…" : "No output device" }],
       onChange: changeDevice,
+      // Audio still flows through FXSound when bypassed, so the device can
+      // always be changed.
+      disabled: !audio.devices.length,
     },
-  ], [preset, device, devices, applyPreset, changeDevice]);
+  ], [preset, powered, audio, applyPreset, changeDevice]);
 
   // Effect sliders with display labels and their keys in PRESET_FX
   const effectSliders = useMemo(() => [
@@ -157,12 +183,21 @@ export default function App() {
     { label: "HyperBass", key: "bass" },
   ], []);
 
-  // Truncate the selected device's display name for the status bar
-  const shortDeviceName = useMemo(() => {
-    const name = devices.find((d) => d.name === device)?.description;
-    if (!name) return "System Default";
-    return name.length > 28 ? name.substring(0, 26) + "…" : name;
-  }, [device, devices]);
+  // What the status bar reports: the device in use, or why there is none.
+  const statusInfo = useMemo(() => {
+    if (audio.state === "error") return audio.message || "Audio unavailable";
+    const name = audio.devices.find((d) => d.name === audio.output)?.description;
+    if (!name) return audio.state === "starting" ? "Connecting…" : "No output device";
+    return `${name} · 48kHz`;
+  }, [audio]);
+
+  const statusLabel =
+    audio.state === "error" ? "OFFLINE"
+      : audio.state === "starting" ? "STARTING"
+        : powered ? "ACTIVE" : "BYPASSED";
+  const statusMod =
+    audio.state === "error" ? "error"
+      : audio.state === "running" && powered ? "active" : null;
 
   // ---------- Render ----------
 
@@ -175,7 +210,7 @@ export default function App() {
           <div className="header__left">
             <button
               className={`power-btn ${powered ? "power-btn--on" : "power-btn--off"}`}
-              onClick={() => setPowered((prev) => !prev)}
+              onClick={togglePower}
               aria-label="Toggle Power"
               title={powered ? "Turn Power Off" : "Turn Power On"}
               aria-pressed={powered}
@@ -190,16 +225,16 @@ export default function App() {
           </div>
 
           <div className="header__dropdowns">
-            {dropdowns.map(({ label, value: val, options, onChange }) => (
+            {dropdowns.map(({ label, value: val, options, onChange, disabled }) => (
               <div key={label} className="dropdown">
                 <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
                 <div className="dropdown__wrapper">
                   <select
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
-                    disabled={!powered}
+                    disabled={disabled}
                     className="dropdown__select"
-                    title={!powered ? "Power on to adjust" : undefined}
+                    title={disabled && !powered ? "Power on to adjust" : undefined}
                     aria-labelledby={`dropdown-label-${label.replace(/\s+/g, "-")}`}
                   >
                     {options.map(({ value: optValue, label: optLabel }) => (
@@ -207,7 +242,7 @@ export default function App() {
                     ))}
                   </select>
                   <svg aria-hidden="true" className="dropdown__arrow" width="10" height="6" viewBox="0 0 10 6">
-                    <path d="M0 0l5 6 5-6z" fill={powered ? "#e63462" : "#555"} />
+                    <path d="M0 0l5 6 5-6z" fill={disabled ? "#555" : "#e63462"} />
                   </svg>
                 </div>
               </div>
@@ -296,14 +331,14 @@ export default function App() {
         </div>
 
         {/* ---- Status Bar ---- */}
-        <div className="status-bar">
+        <div className="status-bar" role="status">
           <div className="status-bar__indicator">
-            <div className={`status-bar__dot ${powered ? "status-bar__dot--active" : ""}`} />
-            <span className={`status-bar__text ${powered ? "status-bar__text--active" : ""}`}>
-              {powered ? "ACTIVE" : "BYPASSED"}
+            <div className={`status-bar__dot ${statusMod ? `status-bar__dot--${statusMod}` : ""}`} />
+            <span className={`status-bar__text ${statusMod ? `status-bar__text--${statusMod}` : ""}`}>
+              {statusLabel}
             </span>
           </div>
-          <span className="status-bar__info">{shortDeviceName} · 48kHz</span>
+          <span className="status-bar__info" title={statusInfo}>{statusInfo}</span>
           <span className="status-bar__preset">
             {preset.toUpperCase()}
             <span className="status-bar__version">v{APP_VERSION}</span>

@@ -311,17 +311,17 @@
   <section class="downloads" id="download">
     <h2>DOWNLOAD</h2>
     <div class="download-grid">
-      <a class="download-btn download-btn--primary" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.4_amd64.AppImage">
+      <a class="download-btn download-btn--primary" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.2.0_amd64.AppImage">
         <span class="download-btn__icon">📦</span>
         AppImage
         <span class="download-btn__sub">Universal · All distros</span>
       </a>
-      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.4_amd64.deb">
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.2.0_amd64.deb">
         <span class="download-btn__icon">🟠</span>
         .deb
         <span class="download-btn__sub">Ubuntu · Debian · Mint</span>
       </a>
-      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.1.4-1.x86_64.rpm">
+      <a class="download-btn" href="https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.2.0-1.x86_64.rpm">
         <span class="download-btn__icon">🔵</span>
         .rpm
         <span class="download-btn__sub">Fedora · RHEL · openSUSE</span>
@@ -365,7 +365,7 @@
       <div class="feature-card">
         <div class="feature-card__icon">🔊</div>
         <div class="feature-card__title">PipeWire / PulseAudio</div>
-        <div class="feature-card__desc">Processes your system audio in real time — not just a UI mockup.</div>
+        <div class="feature-card__desc">Adds an FXSound output device and enhances everything your system plays — in real time, exactly once.</div>
       </div>
       <div class="feature-card">
         <div class="feature-card__icon">⚡</div>
@@ -380,26 +380,27 @@
 
     <div class="install-block">
       <div class="install-block__label">AppImage (Universal)</div>
-      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.4_amd64.AppImage
-chmod +x fxsound-linux_1.1.4_amd64.AppImage
-./fxsound-linux_1.1.4_amd64.AppImage</pre>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.2.0_amd64.AppImage
+chmod +x fxsound-linux_1.2.0_amd64.AppImage
+./fxsound-linux_1.2.0_amd64.AppImage</pre>
     </div>
 
     <div class="install-block">
       <div class="install-block__label">Debian / Ubuntu / Mint</div>
-      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.1.4_amd64.deb
-sudo dpkg -i fxsound-linux_1.1.4_amd64.deb</pre>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux_1.2.0_amd64.deb
+sudo apt install ./fxsound-linux_1.2.0_amd64.deb</pre>
     </div>
 
     <div class="install-block">
       <div class="install-block__label">Fedora / RHEL / openSUSE</div>
-      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.1.4-1.x86_64.rpm
-sudo rpm -i fxsound-linux-1.1.4-1.x86_64.rpm</pre>
+      <pre>wget https://github.com/Raul909/FXSound_For_Linux/releases/latest/download/fxsound-linux-1.2.0-1.x86_64.rpm
+sudo dnf install ./fxsound-linux-1.2.0-1.x86_64.rpm   # openSUSE: sudo zypper install ./fxsound-linux-1.2.0-1.x86_64.rpm</pre>
     </div>
 
     <div class="install-block">
       <div class="install-block__label">Snap</div>
-      <pre>sudo snap install fxsound-linux</pre>
+      <pre>sudo snap install fxsound-linux
+sudo snap connect fxsound-linux:audio-record   # needed on some systems to process system audio</pre>
     </div>
 
     <div class="install-block">

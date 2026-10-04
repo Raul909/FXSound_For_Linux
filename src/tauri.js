@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 /**
  * `invoke()` that always returns a promise.
@@ -15,4 +16,30 @@ export function call(command, args) {
     } catch (err) {
         return Promise.reject(err);
     }
+}
+
+/**
+ * Listen for a backend event; returns a function that stops listening.
+ *
+ * Safe to call outside Tauri (it then never fires), and safe to unsubscribe
+ * before the asynchronous registration has finished — React effects clean up
+ * immediately in StrictMode, which would otherwise leak the listener.
+ */
+export function subscribe(event, handler) {
+    let unlisten = null;
+    let stopped = false;
+    try {
+        Promise.resolve(listen(event, (e) => handler(e.payload)))
+            .then((fn) => {
+                if (stopped) fn();
+                else unlisten = fn;
+            })
+            .catch(() => {});
+    } catch {
+        // Not running inside Tauri.
+    }
+    return () => {
+        stopped = true;
+        if (unlisten) unlisten();
+    };
 }

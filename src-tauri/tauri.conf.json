@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "fxsound-linux",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "identifier": "com.fxsound.linux",
   "build": {
     "frontendDist": "../dist",
@@ -37,6 +37,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "depends": [
+          "libpulse0"
+        ]
+      },
+      "rpm": {
+        "depends": [
+          "libpulse.so.0()(64bit)"
+        ]
+      }
+    }
   }
 }

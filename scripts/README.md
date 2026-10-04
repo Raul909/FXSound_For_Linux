@@ -17,10 +17,27 @@ Check if your system is ready for development
 ```
 
 ### test-audio.sh
-Test PulseAudio system and list audio devices
+Check the audio server (PipeWire or PulseAudio) and list output devices
 
 ```bash
 ./scripts/test-audio.sh
+```
+
+### reset-audio.sh
+Remove a leftover "FXSound" output device and restore your normal default
+output — only needed if FXSound was killed or crashed (relaunching FXSound
+cleans up too)
+
+```bash
+./scripts/reset-audio.sh [output-device-name]
+```
+
+### Audio-routing tests
+End-to-end routing checks against real PipeWire and PulseAudio servers, run in
+Docker — see [`tests/audio-routing/README.md`](../tests/audio-routing/README.md)
+
+```bash
+npm ci && npm run build && tests/audio-routing/run-in-docker.sh pw
 ```
 
 ## Building

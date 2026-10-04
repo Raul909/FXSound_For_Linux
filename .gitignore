@@ -48,3 +48,6 @@ GEMINI.md
 .kiro/
 .jules/
 .Jules/
+
+# Wrangler (Cloudflare) local cache
+.wrangler/

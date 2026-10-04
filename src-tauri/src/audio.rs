@@ -3,16 +3,14 @@
 //! Provides a 10-band equalizer using biquad peak filters, audio effects
 //! (fidelity, dynamic compression, bass boost, ambiance reverb, and 3D
 //! surround widening), and real-time FFT-based spectrum analysis for the
-//! visualizer.
+//! visualizer. Getting audio in and out of the system is `pulse.rs`'s job.
 
-use libpulse_binding as pulse;
-use libpulse_simple_binding as psimple;
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-const SAMPLE_RATE: u32 = 48000;
-const CHANNELS: u8 = 2;
+pub const SAMPLE_RATE: u32 = 48000;
+pub const CHANNELS: u8 = 2;
 const FFT_SIZE: usize = 512;
 
 /// Center frequencies for the 10 EQ bands (Hz).
@@ -44,18 +42,30 @@ const ANTI_DENORMAL: f32 = 1e-20;
 //  Biquad Filter
 // ──────────────────────────────────────────────
 
+/// Frames over which a biquad glides to new coefficients (20 ms at 48 kHz).
+///
+/// Measured on a Flat → Deep Bass preset switch: 5 ms let the sudden +12 dB
+/// of bass hit the limiter before its gain could follow, 40 ms rose slower
+/// than the compressor attacks; 20 ms gave the smallest overshoot.
+const COEF_GLIDE_FRAMES: u32 = 960;
+
 /// Second-order IIR (biquad) filter coefficients and state.
 ///
 /// Used for peaking EQ filters — each band gets its own biquad
 /// that only boosts/cuts around its center frequency.
 #[derive(Clone)]
 struct BiquadFilter {
-    // Coefficients
+    // Coefficients currently in use
     b0: f32,
     b1: f32,
     b2: f32,
     a1: f32,
     a2: f32,
+
+    // Coefficient glide: where it ends, the per-frame increment, frames left
+    target: [f32; 5],
+    step: [f32; 5],
+    glide_left: u32,
 
     // Delay line (filter state for two channels)
     x1: [f32; 2],
@@ -90,6 +100,9 @@ impl BiquadFilter {
             b2: b2 / a0,
             a1: a1 / a0,
             a2: a2 / a0,
+            target: [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0],
+            step: [0.0; 5],
+            glide_left: 0,
             x1: [0.0; 2],
             x2: [0.0; 2],
             y1: [0.0; 2],
@@ -127,6 +140,9 @@ impl BiquadFilter {
             b2: b2 / a0,
             a1: a1 / a0,
             a2: a2 / a0,
+            target: [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0],
+            step: [0.0; 5],
+            glide_left: 0,
             x1: [0.0; 2],
             x2: [0.0; 2],
             y1: [0.0; 2],
@@ -142,11 +158,59 @@ impl BiquadFilter {
             b2: 0.0,
             a1: 0.0,
             a2: 0.0,
+            target: [1.0, 0.0, 0.0, 0.0, 0.0],
+            step: [0.0; 5],
+            glide_left: 0,
             x1: [0.0; 2],
             x2: [0.0; 2],
             y1: [0.0; 2],
             y2: [0.0; 2],
         }
+    }
+
+    /// Glide to another filter's coefficients, keeping this filter's delay
+    /// line.
+    ///
+    /// Moving a slider used to replace the whole filter, zeroing its history
+    /// mid-stream, so the output restarted from silence — a click on every
+    /// step of a drag. Even with the history kept, switching coefficients in
+    /// one sample leaves a step in the output on big jumps such as preset
+    /// changes, so they move linearly over COEF_GLIDE_FRAMES instead.
+    ///
+    /// Gliding cannot destabilise the filter: a biquad is stable exactly when
+    /// (a1, a2) lies inside the triangle |a2| < 1, |a1| < 1 + a2. That region
+    /// is convex, so every point on the line between two stable designs is
+    /// stable too.
+    fn set_coefficients(&mut self, from: &BiquadFilter) {
+        self.target = [from.b0, from.b1, from.b2, from.a1, from.a2];
+        let current = [self.b0, self.b1, self.b2, self.a1, self.a2];
+        for ((step, &to), &now) in self.step.iter_mut().zip(&self.target).zip(&current) {
+            *step = (to - now) / COEF_GLIDE_FRAMES as f32;
+        }
+        self.glide_left = COEF_GLIDE_FRAMES;
+    }
+
+    /// Advance the coefficient glide by one frame, landing exactly on target.
+    #[inline]
+    fn advance_glide(&mut self) {
+        self.glide_left -= 1;
+        if self.glide_left == 0 {
+            [self.b0, self.b1, self.b2, self.a1, self.a2] = self.target;
+        } else {
+            self.b0 += self.step[0];
+            self.b1 += self.step[1];
+            self.b2 += self.step[2];
+            self.a1 += self.step[3];
+            self.a2 += self.step[4];
+        }
+    }
+
+    /// Forget all past samples.
+    fn reset(&mut self) {
+        self.x1 = [0.0; 2];
+        self.x2 = [0.0; 2];
+        self.y1 = [0.0; 2];
+        self.y2 = [0.0; 2];
     }
 
     /// Process a single sample through the filter for the given channel.
@@ -163,6 +227,11 @@ impl BiquadFilter {
         self.x1[ch] = input;
         self.y2[ch] = self.y1[ch];
         self.y1[ch] = if output.abs() < 1e-25 { 0.0 } else { output };
+
+        // Coefficients advance once per stereo frame, after the right channel.
+        if ch == 1 && self.glide_left > 0 {
+            self.advance_glide();
+        }
 
         output
     }
@@ -194,6 +263,11 @@ impl CombFilter {
         }
     }
 
+    fn reset(&mut self) {
+        self.buffer.fill(0.0);
+        self.filter_store = 0.0;
+    }
+
     #[inline]
     fn process(&mut self, input: f32) -> f32 {
         let output = self.buffer[self.index];
@@ -222,6 +296,10 @@ impl AllpassFilter {
             index: 0,
             feedback,
         }
+    }
+
+    fn reset(&mut self) {
+        self.buffer.fill(0.0);
     }
 
     #[inline]
@@ -288,6 +366,14 @@ impl StereoReverb {
         }
     }
 
+    /// Silence the tail.
+    fn reset(&mut self) {
+        self.combs_l.iter_mut().for_each(CombFilter::reset);
+        self.combs_r.iter_mut().for_each(CombFilter::reset);
+        self.allpass_l.iter_mut().for_each(AllpassFilter::reset);
+        self.allpass_r.iter_mut().for_each(AllpassFilter::reset);
+    }
+
     /// Process one stereo frame and return the wet (reverb-only) L/R signal.
     #[inline]
     fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
@@ -344,6 +430,10 @@ impl Limiter {
         }
     }
 
+    fn reset(&mut self) {
+        self.gain = 1.0;
+    }
+
     #[inline]
     fn process_frame(&mut self, l: &mut f32, r: &mut f32) {
         let peak = l.abs().max(r.abs());
@@ -393,11 +483,15 @@ impl Compressor {
         }
     }
 
-    /// - `threshold` — linear level above which gain reduction starts
-    /// - `slope` — 1/ratio (1.0 = no compression, 0.4 = 2.5:1)
-    /// - `makeup` — output gain applied after compression
+    fn reset(&mut self) {
+        self.env = 0.0;
+    }
+
+    /// Follow the stereo peak envelope. Runs even while Dynamic Boost is at
+    /// zero so that raising the slider starts from the true signal level
+    /// instead of a stale one from whenever it was last used.
     #[inline]
-    fn process_frame(&mut self, l: &mut f32, r: &mut f32, threshold: f32, slope: f32, makeup: f32) {
+    fn track(&mut self, l: f32, r: f32) {
         let peak = l.abs().max(r.abs());
         let coef = if peak > self.env {
             self.attack
@@ -405,6 +499,17 @@ impl Compressor {
             self.release
         };
         self.env += (peak - self.env) * coef;
+        if self.env < DENORMAL_FLUSH {
+            self.env = 0.0;
+        }
+    }
+
+    /// - `threshold` — linear level above which gain reduction starts
+    /// - `slope` — 1/ratio (1.0 = no compression, 0.4 = 2.5:1)
+    /// - `makeup` — output gain applied after compression
+    #[inline]
+    fn process_frame(&mut self, l: &mut f32, r: &mut f32, threshold: f32, slope: f32, makeup: f32) {
+        self.track(*l, *r);
 
         let reduction = if self.env > threshold {
             (threshold + (self.env - threshold) * slope) / self.env
@@ -422,6 +527,32 @@ impl Compressor {
 //  Audio Engine
 // ──────────────────────────────────────────────
 
+/// Effect names accepted by [`AudioEngine::set_effect`], as sent by the UI.
+pub const EFFECT_NAMES: [&str; 5] = ["fidelity", "ambiance", "dynamic", "surround", "bass"];
+
+/// Length of the bypass crossfade (seconds). Jumping between the processed and
+/// the original signal in a single sample is a step in the waveform — a click
+/// on every press of the power button — so the two are blended instead.
+const BYPASS_FADE_SECONDS: f32 = 0.02;
+
+/// Samples quieter than this count as digital silence (about −120 dBFS).
+const SILENCE_THRESHOLD: f32 = 1e-6;
+
+/// How long the input must stay digitally silent before processing pauses.
+///
+/// The previous gate muted any buffer whose RMS fell below −60 dBFS, which is
+/// quiet music, not silence: fade-outs and soft passages were cut to nothing,
+/// and the ambiance tail was chopped the moment a track ended. Now only true
+/// silence pauses the DSP, and only once every tail has had time to ring out.
+const SILENCE_HANGOVER_SECONDS: f32 = 2.0;
+
+/// The visualizer runs one FFT per this many stereo frames.
+const FFT_HOP: usize = FFT_SIZE;
+
+/// Values below this are flushed to zero in decaying one-pole states, which
+/// would otherwise sink into denormals during silence (slow on x86).
+const DENORMAL_FLUSH: f32 = 1e-25;
+
 /// Core audio processing state.
 ///
 /// Holds the EQ band gains, effect values, biquad filter instances,
@@ -436,7 +567,10 @@ pub struct AudioEngine {
     effects: HashMap<String, f32>,
     sample_rate: u32,
 
-    /// One biquad filter per EQ band — rebuilt when gain changes.
+    /// One biquad per EQ band. All ten always run: a flat band is an exact
+    /// identity (b0 = 1, every other coefficient 0), and keeping it in the
+    /// chain keeps its delay line in step with the signal, so a band that
+    /// starts moving never begins from stale state.
     filters: Vec<BiquadFilter>,
 
     /// FFT magnitude data shared with the UI for the visualizer.
@@ -448,7 +582,7 @@ pub struct AudioEngine {
     /// Stereo reverb driving the "ambiance" effect (spatial ambience).
     reverb: StereoReverb,
 
-    /// Low-shelf filter implementing HyperBass — rebuilt when the slider moves.
+    /// Low-shelf filter implementing HyperBass (identity while at zero).
     bass_shelf: BiquadFilter,
 
     /// One-pole low-pass state (per channel) used to split off the high band
@@ -460,9 +594,36 @@ pub struct AudioEngine {
     compressor: Compressor,
     limiter: Limiter,
 
+    /// Effect amounts actually applied (fidelity, ambiance, dynamic, surround
+    /// as 0–1), easing towards the slider values instead of jumping: a preset
+    /// change could otherwise step the makeup gain or stereo width mid-wave.
+    fx: [f32; 4],
+    fx_smooth: f32,
+
     /// Hann window applied before the visualizer FFT to suppress the spectral
     /// leakage that made neighbouring bars bleed into each other.
     fft_window: Vec<f32>,
+
+    /// Position of the bypass crossfade: 1.0 = processed, 0.0 = original.
+    mix: f32,
+    /// How far `mix` moves per stereo frame while fading.
+    mix_step: f32,
+
+    /// Consecutive digitally-silent input frames, and how many are allowed
+    /// before processing pauses.
+    silent_frames: usize,
+    silence_hangover: usize,
+
+    /// The most recent FFT_SIZE mono samples, oldest at `fft_ring_pos`.
+    ///
+    /// The FFT used to run only on calls carrying at least 1024 samples, so
+    /// any capture fragment smaller than that left the visualizer frozen.
+    /// Accumulating here makes it independent of how audio is chunked.
+    fft_ring: Vec<f32>,
+    fft_ring_pos: usize,
+    /// Frames gathered since the last FFT, and since the last decay step.
+    fft_pending: usize,
+    decay_pending: usize,
 }
 
 impl AudioEngine {
@@ -493,10 +654,7 @@ impl AudioEngine {
 
         // Periodic Hann window, matching the FFT's implicit periodicity.
         let fft_window = (0..FFT_SIZE)
-            .map(|n| {
-                0.5 * (1.0
-                    - (2.0 * std::f32::consts::PI * n as f32 / FFT_SIZE as f32).cos())
-            })
+            .map(|n| 0.5 * (1.0 - (2.0 * std::f32::consts::PI * n as f32 / FFT_SIZE as f32).cos()))
             .collect();
 
         let sample_rate = SAMPLE_RATE as f32;
@@ -518,41 +676,54 @@ impl AudioEngine {
                 - (-2.0 * std::f32::consts::PI * FIDELITY_CROSSOVER / sample_rate).exp(),
             compressor: Compressor::new(sample_rate),
             limiter: Limiter::new(sample_rate),
+            fx: [0.0; 4],
+            fx_smooth: time_coef(20e-3, sample_rate),
             fft_window,
+            mix: 1.0,
+            mix_step: 1.0 / (BYPASS_FADE_SECONDS * sample_rate),
+            silent_frames: 0,
+            silence_hangover: (SILENCE_HANGOVER_SECONDS * sample_rate) as usize,
+            fft_ring: vec![0.0; FFT_SIZE],
+            fft_ring_pos: 0,
+            fft_pending: 0,
+            decay_pending: 0,
         }
     }
 
-    /// Set the gain for a single EQ band and rebuild its biquad filter.
+    /// Set the gain for a single EQ band, keeping the filter's state.
     pub fn set_eq_band(&mut self, band: usize, gain: f32) {
-        if band >= 10 {
+        if band >= EQ_FREQUENCIES.len() || !gain.is_finite() {
             return;
         }
         self.eq_bands[band] = gain.clamp(-12.0, 12.0);
 
-        // Rebuild the biquad filter for this band with the new gain
         // Q factor of 1.4 gives a moderate bandwidth suitable for a 10-band EQ
-        if self.eq_bands[band].abs() < 0.1 {
-            self.filters[band] = BiquadFilter::flat();
+        let design = if self.eq_bands[band].abs() < 0.1 {
+            BiquadFilter::flat()
         } else {
-            self.filters[band] = BiquadFilter::peaking_eq(
+            BiquadFilter::peaking_eq(
                 EQ_FREQUENCIES[band],
                 self.eq_bands[band],
                 1.4,
                 self.sample_rate as f32,
-            );
-        }
-        log::info!("EQ band {} set to {:.1} dB", band, self.eq_bands[band]);
+            )
+        };
+        self.filters[band].set_coefficients(&design);
+        log::debug!("EQ band {} set to {:.1} dB", band, self.eq_bands[band]);
     }
 
     /// Set an effect intensity value (0–100).
     pub fn set_effect(&mut self, effect: &str, value: f32) {
+        if !value.is_finite() {
+            return;
+        }
         let clamped = value.clamp(0.0, 100.0);
         self.effects.insert(effect.to_string(), clamped);
 
         // HyperBass runs through a low-shelf biquad, so its coefficients have
         // to be recomputed whenever the slider moves.
         if effect == "bass" {
-            self.bass_shelf = if clamped < 0.5 {
+            let design = if clamped < 0.5 {
                 BiquadFilter::flat()
             } else {
                 BiquadFilter::low_shelf(
@@ -562,17 +733,17 @@ impl AudioEngine {
                     self.sample_rate as f32,
                 )
             };
+            self.bass_shelf.set_coefficients(&design);
         }
 
-        log::info!("Effect '{}' set to {:.1}", effect, clamped);
+        log::debug!("Effect '{}' set to {:.1}", effect, clamped);
     }
 
-    /// Toggle audio processing on or off.
-    /// When off, the audio loop outputs silence rather than passthrough
-    /// to avoid doubling the original audio.
+    /// Toggle processing. Off is a true bypass: the original audio passes
+    /// through unchanged. Both directions crossfade over a few milliseconds.
     pub fn set_power(&mut self, enabled: bool) {
         self.powered = enabled;
-        log::info!("Power: {}", if enabled { "ON" } else { "OFF" });
+        log::info!("Power: {}", if enabled { "ON" } else { "OFF (bypass)" });
     }
 
     /// Return the current FFT magnitude data for the visualizer (32 bins).
@@ -585,39 +756,87 @@ impl AudioEngine {
 
     // ── Main processing pipeline ──
 
-    /// Process an audio buffer: apply EQ, effects, limiter, and update the visualizer.
+    /// Process interleaved stereo audio: EQ, effects and limiter, with a
+    /// crossfaded bypass, then feed the visualizer.
     ///
-    /// When powered off, the output is filled with silence to prevent
-    /// audio doubling (the original system audio is already playing).
+    /// Works on any number of whole frames, so it does not care how the
+    /// audio server chunks the stream.
     pub fn process_audio(&mut self, input: &[f32], output: &mut [f32]) {
-        if !self.powered {
-            output.fill(0.0);
-            // Let the visualizer fall to the floor instead of freezing on the
-            // last frame captured before power-off.
-            self.decay_fft();
+        let ch = CHANNELS as usize;
+        let len = input.len().min(output.len()) / ch * ch;
+        let (input, output) = (&input[..len], &mut output[..len]);
+        let frames = len / ch;
+        if frames == 0 {
             return;
         }
 
-        // Skip near-silent input to avoid amplifying noise
-        let rms: f32 = input.iter().map(|&x| x * x).sum::<f32>() / input.len() as f32;
-        // Optimization: compare squared value (0.000001) instead of using expensive rms.sqrt()
-        if rms < 0.000001 {
-            output.fill(0.0);
-            self.decay_fft();
+        let target = if self.powered { 1.0 } else { 0.0 };
+
+        // Fully bypassed: hand the original audio straight through. Audio
+        // reaches the speakers only via FXSound now, so this must never be
+        // silence — the old engine muted here because, back then, the
+        // unprocessed audio was also playing directly.
+        if self.mix <= 0.0 && target <= 0.0 {
+            output.copy_from_slice(input);
+            self.decay_fft(frames);
             return;
         }
 
-        // Apply the 10-band EQ using biquad filters
+        if input.iter().all(|s| s.abs() < SILENCE_THRESHOLD) {
+            self.silent_frames = self.silent_frames.saturating_add(frames);
+        } else {
+            self.silent_frames = 0;
+        }
+        if self.silent_frames > self.silence_hangover {
+            if self.silent_frames - frames <= self.silence_hangover {
+                // Just went quiet for good: every tail has rung out, so let
+                // the next sound start from clean state.
+                self.reset_state();
+            }
+            output.fill(0.0);
+            self.mix = target; // nothing audible left to crossfade
+            self.decay_fft(frames);
+            return;
+        }
+
+        // Re-entering from a full bypass: drop state from before power went
+        // off, such as the reverb tail of whatever was playing then.
+        if self.mix <= 0.0 {
+            self.reset_state();
+        }
+
         self.apply_eq(input, output);
-
-        // Apply audio effects (fidelity, dynamic, bass, 3D surround, ambiance)
         self.apply_effects(output);
-
-        // Hard limiter — prevent clipping
         self.apply_limiter(output);
 
-        // Update FFT data for the visualizer
-        self.update_fft(output);
+        if self.mix != target {
+            for (out, dry) in output.chunks_exact_mut(ch).zip(input.chunks_exact(ch)) {
+                self.mix = if target > self.mix {
+                    (self.mix + self.mix_step).min(target)
+                } else {
+                    (self.mix - self.mix_step).max(target)
+                };
+                out[0] = dry[0] + (out[0] - dry[0]) * self.mix;
+                out[1] = dry[1] + (out[1] - dry[1]) * self.mix;
+            }
+        }
+
+        if self.powered {
+            self.update_fft(output);
+        } else {
+            // Let the bars fall while fading out to bypass.
+            self.decay_fft(frames);
+        }
+    }
+
+    /// Clear every filter, envelope and reverb buffer.
+    fn reset_state(&mut self) {
+        self.filters.iter_mut().for_each(BiquadFilter::reset);
+        self.bass_shelf.reset();
+        self.fidelity_lp = [0.0; 2];
+        self.reverb.reset();
+        self.compressor.reset();
+        self.limiter.reset();
     }
 
     // ── EQ Processing ──
@@ -627,36 +846,19 @@ impl AudioEngine {
     /// Each filter only affects frequencies around its center frequency,
     /// so adjusting the 32 Hz band won't change treble, and vice versa.
     fn apply_eq(&mut self, input: &[f32], output: &mut [f32]) {
-        output.copy_from_slice(input);
-
-        // Pre-compute active bands to avoid branching in the inner loop
-        let mut active_bands = [0usize; 10];
-        let mut active_count = 0;
-        for band in 0..10 {
-            // Skip flat bands for efficiency
-            if self.eq_bands[band].abs() >= 0.1 {
-                active_bands[active_count] = band;
-                active_count += 1;
-            }
-        }
-
-        let active_bands_slice = &active_bands[..active_count];
-
-        // Process each sample through all active biquad filters
         // Interleaved stereo: chunk[0] = left, chunk[1] = right
-        for chunk in output.chunks_exact_mut(CHANNELS as usize) {
-            let mut l = chunk[0];
-            let mut r = chunk[1];
-
-            for &band in active_bands_slice {
-                // Process left channel
-                l = self.filters[band].process(l, 0);
-                // Process right channel
-                r = self.filters[band].process(r, 1);
+        for (out, inp) in output
+            .chunks_exact_mut(CHANNELS as usize)
+            .zip(input.chunks_exact(CHANNELS as usize))
+        {
+            let mut l = inp[0];
+            let mut r = inp[1];
+            for filter in self.filters.iter_mut() {
+                l = filter.process(l, 0);
+                r = filter.process(r, 1);
             }
-
-            chunk[0] = l;
-            chunk[1] = r;
+            out[0] = l;
+            out[1] = r;
         }
     }
 
@@ -671,88 +873,90 @@ impl AudioEngine {
     /// Dynamics run last so the compressor sees the finished signal — putting
     /// it mid-chain, as before, meant later stages could re-introduce the peaks
     /// it had just controlled.
+    ///
+    /// Every stateful stage keeps running at zero (contributing nothing), so
+    /// raising a slider from zero picks up from the live signal instead of
+    /// whatever its filters held when it was last switched off.
     fn apply_effects(&mut self, buffer: &mut [f32]) {
-        let fidelity = self.effects.get("fidelity").copied().unwrap_or(0.0);
-        let dynamic = self.effects.get("dynamic").copied().unwrap_or(0.0);
-        let bass = self.effects.get("bass").copied().unwrap_or(0.0);
-        let ambiance = self.effects.get("ambiance").copied().unwrap_or(0.0);
-        let surround = self.effects.get("surround").copied().unwrap_or(0.0);
+        let target = [
+            self.effects.get("fidelity").copied().unwrap_or(0.0) / 100.0,
+            self.effects.get("ambiance").copied().unwrap_or(0.0) / 100.0,
+            self.effects.get("dynamic").copied().unwrap_or(0.0) / 100.0,
+            self.effects.get("surround").copied().unwrap_or(0.0) / 100.0,
+        ];
+        let k = self.fx_smooth;
+        let lp_coef = self.fidelity_lp_coef;
 
-        // ── HyperBass: low-shelf boost below ~110 Hz ──
-        // Previously a flat broadband multiply, which just made everything
-        // louder without changing the tonal balance at all.
-        if bass >= 0.5 {
-            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
-                frame[0] = self.bass_shelf.process(frame[0], 0);
-                frame[1] = self.bass_shelf.process(frame[1], 1);
-            }
-        }
-
-        // ── Fidelity: high-band harmonic exciter ──
-        // The old version saturated the full-band signal, which mostly added
-        // intermodulation on the bass. Split off the band above ~3 kHz, drive
-        // only that, and add it back on top of the untouched dry signal.
-        if fidelity > 0.0 {
-            let amount = fidelity / 100.0;
-            let drive = 1.5 + amount * 2.5;
-            let mix = amount * 0.30;
-            let coef = self.fidelity_lp_coef;
-
-            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
-                for (sample, lp) in frame.iter_mut().zip(self.fidelity_lp.iter_mut()) {
-                    let s = *sample;
-                    *lp += (s - *lp) * coef;
-                    let high = s - *lp;
-                    *sample = s + (high * drive).tanh() * mix;
+        for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
+            for (now, &to) in self.fx.iter_mut().zip(&target) {
+                *now += (to - *now) * k;
+                if (to - *now).abs() < 1e-5 {
+                    *now = to;
                 }
             }
-        }
+            let [fidelity, ambiance, dynamic, surround] = self.fx;
+            let (mut l, mut r) = (frame[0], frame[1]);
 
-        // ── 3D Surround: mid/side stereo widening ──
-        // width scales from 1.0 (no change) at 0 to 2.0 at 100. The mid
-        // (mono) component is preserved, so mono content and downmix
-        // compatibility are unaffected — only the stereo "side" is widened.
-        if surround > 0.0 {
-            let width = 1.0 + (surround / 100.0);
-            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
-                let mid = (frame[0] + frame[1]) * 0.5;
-                let side = (frame[0] - frame[1]) * 0.5 * width;
-                frame[0] = mid + side;
-                frame[1] = mid - side;
+            // ── HyperBass: low-shelf boost below ~110 Hz (identity at zero) ──
+            l = self.bass_shelf.process(l, 0);
+            r = self.bass_shelf.process(r, 1);
+
+            // ── Fidelity: high-band harmonic exciter ──
+            // Splits off the band above ~3 kHz, drives only that, and adds it
+            // back on top of the untouched dry signal.
+            let drive = 1.5 + fidelity * 2.5;
+            let mix = fidelity * 0.30;
+            for (sample, lp) in [&mut l, &mut r]
+                .into_iter()
+                .zip(self.fidelity_lp.iter_mut())
+            {
+                *lp += (*sample - *lp) * lp_coef;
+                if lp.abs() < DENORMAL_FLUSH {
+                    *lp = 0.0;
+                }
+                if mix > 0.0 {
+                    let high = *sample - *lp;
+                    *sample += (high * drive).tanh() * mix;
+                }
             }
-        }
 
-        // ── Ambiance: stereo reverb mixed on top of the dry signal ──
-        // Runs as a parallel "send": the dry signal is kept intact and a
-        // scaled wet reverb is added, so raising ambiance adds space without
-        // hollowing out the original. The limiter downstream tames peaks.
-        if ambiance > 0.0 {
-            let wet = (ambiance / 100.0) * 0.45;
-            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
-                let (wet_l, wet_r) = self.reverb.process(frame[0], frame[1]);
-                frame[0] += wet_l * wet;
-                frame[1] += wet_r * wet;
+            // ── 3D Surround: mid/side stereo widening ──
+            // Width runs from 1.0 (no change) at 0 to 2.0 at 100. The mid
+            // (mono) component is preserved, so mono content and downmix
+            // compatibility are unaffected — only the stereo "side" widens.
+            if surround > 0.0 {
+                let mid = (l + r) * 0.5;
+                let side = (l - r) * 0.5 * (1.0 + surround);
+                l = mid + side;
+                r = mid - side;
             }
-        }
 
-        // ── Dynamic Boost: compression with makeup gain ──
-        // Narrows the gap between quiet and loud passages, then gives back the
-        // headroom that compression removed so the result is audibly louder and
-        // denser — which is what the slider name promises.
-        if dynamic > 0.0 {
-            let amount = dynamic / 100.0;
-            let threshold = 1.0 - 0.45 * amount;
-            let slope = 1.0 - 0.6 * amount;
-            // Gain that restores a full-scale peak back to full scale.
-            let makeup = 1.0 / (threshold + (1.0 - threshold) * slope);
+            // ── Ambiance: stereo reverb mixed on top of the dry signal ──
+            // A parallel "send": the dry signal stays intact and scaled wet
+            // reverb is added, so ambiance adds space without hollowing out
+            // the original. The limiter downstream tames peaks.
+            let (wet_l, wet_r) = self.reverb.process(l, r);
+            let wet = ambiance * 0.45;
+            l += wet_l * wet;
+            r += wet_r * wet;
 
-            for frame in buffer.chunks_exact_mut(CHANNELS as usize) {
-                let (mut l, mut r) = (frame[0], frame[1]);
+            // ── Dynamic Boost: compression with makeup gain ──
+            // Narrows the gap between quiet and loud passages, then gives back
+            // the headroom compression removed, so the result is audibly
+            // louder and denser — which is what the slider name promises.
+            if dynamic > 0.0 {
+                let threshold = 1.0 - 0.45 * dynamic;
+                let slope = 1.0 - 0.6 * dynamic;
+                // Gain that restores a full-scale peak back to full scale.
+                let makeup = 1.0 / (threshold + (1.0 - threshold) * slope);
                 self.compressor
                     .process_frame(&mut l, &mut r, threshold, slope, makeup);
-                frame[0] = l;
-                frame[1] = r;
+            } else {
+                self.compressor.track(l, r);
             }
+
+            frame[0] = l;
+            frame[1] = r;
         }
     }
 
@@ -771,38 +975,58 @@ impl AudioEngine {
 
     // ── Visualizer FFT ──
 
-    /// Fade the visualizer bars towards zero.
+    /// Fade the visualizer bars towards zero by one step per FFT_HOP frames.
     ///
-    /// Called on the silent and powered-off paths, which return before the FFT
-    /// runs. Without this the last computed magnitudes stayed latched and the
-    /// bars froze mid-height whenever playback stopped.
-    fn decay_fft(&mut self) {
+    /// Used on the silent and bypassed paths, which never reach the FFT.
+    /// Without it the last magnitudes stayed latched and the bars froze
+    /// mid-height whenever playback stopped.
+    fn decay_fft(&mut self, frames: usize) {
+        self.fft_pending = 0;
+        self.decay_pending += frames;
+        if self.decay_pending < FFT_HOP {
+            return;
+        }
+        let steps = (self.decay_pending / FFT_HOP).min(64) as i32;
+        self.decay_pending %= FFT_HOP;
+        let factor = 0.75f32.powi(steps);
+
         let mut fft_data = self.fft_data.lock().unwrap_or_else(|e| e.into_inner());
         for value in fft_data.iter_mut() {
-            *value *= 0.75;
+            *value *= factor;
             if *value < 0.01 {
                 *value = 0.0;
             }
         }
     }
 
-    /// Compute FFT magnitudes from the output buffer and store for the visualizer.
+    /// Feed processed audio to the visualizer, running an FFT every FFT_HOP
+    /// frames regardless of how the audio arrives.
     fn update_fft(&mut self, buffer: &[f32]) {
-        // Since input is stereo (interleaved), we need at least FFT_SIZE * 2 samples
-        if buffer.len() < FFT_SIZE * 2 {
-            return;
+        self.decay_pending = 0;
+        for frame in buffer.chunks_exact(CHANNELS as usize) {
+            self.fft_ring[self.fft_ring_pos] = (frame[0] + frame[1]) * 0.5;
+            self.fft_ring_pos = (self.fft_ring_pos + 1) % FFT_SIZE;
+            self.fft_pending += 1;
+            if self.fft_pending >= FFT_HOP {
+                self.fft_pending = 0;
+                self.compute_fft();
+            }
         }
+    }
 
-        // Mix interleaved stereo to mono into the complex buffer, applying the
-        // Hann window. Without a window the abrupt block edges smear energy
-        // across every bin, so a pure tone lit up bars either side of it.
-        for ((chunk, complex), w) in buffer
-            .chunks_exact(2)
-            .zip(self.complex_buffer.iter_mut())
+    /// Windowed FFT of the ring buffer, mapped onto the 32 visualizer bars.
+    fn compute_fft(&mut self) {
+        // The ring's write position holds its oldest sample. Without a window
+        // the abrupt block edges smear energy across every bin, so a pure tone
+        // lit up bars either side of it.
+        for (i, (complex, w)) in self
+            .complex_buffer
+            .iter_mut()
             .zip(self.fft_window.iter())
+            .enumerate()
         {
-            let mono = (chunk[0] + chunk[1]) * 0.5 * w;
-            *complex = Complex::new(mono, 0.0);
+            let sample = self.fft_ring[(self.fft_ring_pos + i) % FFT_SIZE];
+            *complex = Complex::new(sample * w, 0.0);
         }
 
         self.fft_processor.process(&mut self.complex_buffer);
@@ -835,361 +1059,10 @@ impl AudioEngine {
     }
 }
 
-// ──────────────────────────────────────────────
-//  PulseAudio Integration
-// ──────────────────────────────────────────────
-
-/// Shared handle for retargeting the playback stream while the audio loop runs.
-///
-/// The loop polls `generation` once per buffer; bumping it makes the loop tear
-/// down its playback stream and reopen it on the newly requested sink. Without
-/// this the "Output Device" dropdown was inert — the loop always opened the
-/// server default and nothing the user picked had any effect.
-#[derive(Clone, Default)]
-pub struct OutputRouting {
-    sink: Arc<std::sync::Mutex<Option<String>>>,
-    generation: Arc<std::sync::atomic::AtomicU64>,
-}
-
-impl OutputRouting {
-    /// Request playback on a specific sink, or `None` for the server default.
-    pub fn set_sink(&self, name: Option<String>) {
-        *self.sink.lock().unwrap_or_else(|e| e.into_inner()) = name;
-        self.generation
-            .fetch_add(1, std::sync::atomic::Ordering::Release);
+impl Default for AudioEngine {
+    fn default() -> Self {
+        Self::new()
     }
-
-    fn sink(&self) -> Option<String> {
-        self.sink.lock().unwrap_or_else(|e| e.into_inner()).clone()
-    }
-
-    fn generation(&self) -> u64 {
-        self.generation.load(std::sync::atomic::Ordering::Acquire)
-    }
-}
-
-/// Manages the PulseAudio capture/playback loop.
-///
-/// Captures system audio from the monitor source, runs it through
-/// the AudioEngine for processing, and outputs the result.
-pub struct AudioProcessor {
-    engine: Arc<std::sync::Mutex<AudioEngine>>,
-    routing: OutputRouting,
-}
-
-impl AudioProcessor {
-    pub fn new(engine: Arc<std::sync::Mutex<AudioEngine>>, routing: OutputRouting) -> Self {
-        Self { engine, routing }
-    }
-
-    /// Start the audio processing loop in a background thread.
-    pub fn start(&self) -> Result<(), String> {
-        log::info!("Starting PipeWire/PulseAudio processor...");
-
-        let spec = pulse::sample::Spec {
-            format: pulse::sample::Format::F32le,
-            channels: CHANNELS,
-            rate: SAMPLE_RATE,
-        };
-
-        if !spec.is_valid() {
-            return Err("Invalid audio spec".to_string());
-        }
-
-        let engine = Arc::clone(&self.engine);
-        let routing = self.routing.clone();
-
-        std::thread::spawn(move || match Self::audio_loop(engine, routing, spec) {
-            Ok(_) => log::info!("Audio loop ended normally"),
-            Err(e) => log::error!("Audio loop error: {}", e),
-        });
-
-        Ok(())
-    }
-
-    /// Open a playback stream on `sink` (or the server default when `None`).
-    fn open_output(
-        spec: &pulse::sample::Spec,
-        sink: Option<&str>,
-    ) -> Result<psimple::Simple, String> {
-        psimple::Simple::new(
-            None,
-            "FXSound Output",
-            pulse::stream::Direction::Playback,
-            sink,
-            "Processed Audio",
-            spec,
-            None,
-            None,
-        )
-        .map_err(|e| format!("Failed to create output stream: {}", e))
-    }
-
-    /// Main audio capture → process → playback loop.
-    ///
-    /// Reads from the system monitor source (captures all desktop audio),
-    /// processes it through the AudioEngine, and writes to an output stream.
-    fn audio_loop(
-        engine: Arc<std::sync::Mutex<AudioEngine>>,
-        routing: OutputRouting,
-        spec: pulse::sample::Spec,
-    ) -> Result<(), String> {
-        // Try to open the monitor source (captures system audio output)
-        let input = psimple::Simple::new(
-            None,
-            "FXSound Input",
-            pulse::stream::Direction::Record,
-            Some("@DEFAULT_MONITOR@"),
-            "Capture System Audio",
-            &spec,
-            None,
-            None,
-        )
-        .inspect_err(|e| {
-            log::warn!(
-                "Failed to open monitor source: {}. Trying default source...",
-                e
-            );
-        });
-
-        let input = match input {
-            Ok(stream) => stream,
-            Err(_) => {
-                // Fallback: use the default recording source
-                psimple::Simple::new(
-                    None,
-                    "FXSound Input",
-                    pulse::stream::Direction::Record,
-                    None,
-                    "Capture System Audio",
-                    &spec,
-                    None,
-                    None,
-                )
-                .map_err(|e| format!("Failed to create input stream: {}", e))?
-            }
-        };
-
-        // Create the playback output stream on whichever sink is selected.
-        let mut output_generation = routing.generation();
-        let mut output = Self::open_output(&spec, routing.sink().as_deref())?;
-
-        log::info!("Audio streams created successfully");
-        log::info!("Processing system audio through FXSound...");
-
-        const BUFFER_SIZE: usize = 1024;
-        let mut input_bytes = vec![0u8; BUFFER_SIZE * 4]; // f32 = 4 bytes
-        let mut input_samples = vec![0f32; BUFFER_SIZE];
-        let mut output_samples = vec![0f32; BUFFER_SIZE];
-        let mut output_bytes = vec![0u8; BUFFER_SIZE * 4];
-
-        loop {
-            // Reopen the playback stream if the user picked a different output
-            // device. On failure keep the working stream rather than going
-            // silent — a bad choice should not kill audio.
-            let generation = routing.generation();
-            if generation != output_generation {
-                output_generation = generation;
-                let requested = routing.sink();
-                match Self::open_output(&spec, requested.as_deref()) {
-                    Ok(stream) => {
-                        output = stream;
-                        log::info!(
-                            "Output device switched to {}",
-                            requested.as_deref().unwrap_or("system default")
-                        );
-                    }
-                    Err(e) => log::error!("Keeping previous output device: {}", e),
-                }
-            }
-
-            // Read raw bytes from the input stream
-            if let Err(e) = input.read(&mut input_bytes) {
-                log::error!("Read error: {}", e);
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                continue;
-            }
-
-            // Convert bytes to f32 samples in-place
-            for (chunk, sample) in input_bytes.chunks_exact(4).zip(input_samples.iter_mut()) {
-                *sample = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-            }
-
-            // Process audio through the engine
-            {
-                let mut engine = engine.lock().unwrap_or_else(|e| e.into_inner());
-                engine.process_audio(&input_samples, &mut output_samples);
-            }
-
-            // Convert f32 samples back to bytes in-place
-            for (sample, chunk) in output_samples.iter().zip(output_bytes.chunks_exact_mut(4)) {
-                chunk.copy_from_slice(&sample.to_le_bytes());
-            }
-
-            if let Err(e) = output.write(&output_bytes) {
-                log::error!("Write error: {}", e);
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                continue;
-            }
-        }
-    }
-}
-
-// ──────────────────────────────────────────────
-//  PulseAudio Device Detection
-// ──────────────────────────────────────────────
-
-/// A PulseAudio/PipeWire playback sink.
-///
-/// `name` is the stable identifier the playback stream is opened against;
-/// `description` is what the user sees. The two are different strings, which is
-/// why listing descriptions alone was not enough to actually route audio.
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct AudioSink {
-    pub name: String,
-    pub description: String,
-    pub is_default: bool,
-}
-
-/// Query PulseAudio for available audio output sinks.
-///
-/// Uses the introspection API to list every sink along with the server's
-/// current default, so the UI can preselect the device audio is really on.
-pub fn get_pulse_sinks() -> Result<Vec<AudioSink>, String> {
-    use pulse::context::{Context, FlagSet as ContextFlagSet};
-    use pulse::mainloop::threaded::Mainloop;
-    use std::sync::{Arc, Condvar, Mutex};
-    use std::time::Duration;
-
-    /// Block until a callback signals completion, or time out.
-    fn wait_for(done: &Arc<(Mutex<bool>, Condvar)>) {
-        let (lock, cvar) = &**done;
-        let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
-        let timeout = Duration::from_secs(3);
-        while !*finished {
-            let (guard, result) = cvar
-                .wait_timeout(finished, timeout)
-                .unwrap_or_else(|e| e.into_inner());
-            finished = guard;
-            if result.timed_out() {
-                break;
-            }
-        }
-    }
-
-    fn signal(done: &Arc<(Mutex<bool>, Condvar)>) {
-        let (lock, cvar) = &**done;
-        let mut finished = lock.lock().unwrap_or_else(|e| e.into_inner());
-        *finished = true;
-        cvar.notify_one();
-    }
-
-    // Create a threaded mainloop for the introspection query
-    let mut mainloop = Mainloop::new().ok_or("Failed to create PulseAudio mainloop")?;
-    mainloop
-        .start()
-        .map_err(|e| format!("Failed to start mainloop: {}", e))?;
-
-    let mut context = match Context::new(&mainloop, "FXSound Device Query") {
-        Some(context) => context,
-        None => {
-            mainloop.stop();
-            return Err("Failed to create PulseAudio context".to_string());
-        }
-    };
-
-    // Lock the mainloop while connecting
-    mainloop.lock();
-    if let Err(e) = context.connect(None, ContextFlagSet::NOFLAGS, None) {
-        mainloop.unlock();
-        mainloop.stop();
-        return Err(format!("Failed to connect context: {}", e));
-    }
-
-    // Wait for the context to be ready (up to 5 seconds)
-    let start = std::time::Instant::now();
-    loop {
-        match context.get_state() {
-            pulse::context::State::Ready => break,
-            pulse::context::State::Failed | pulse::context::State::Terminated => {
-                mainloop.unlock();
-                mainloop.stop();
-                return Err("PulseAudio context failed".to_string());
-            }
-            _ => {}
-        }
-        if start.elapsed() > Duration::from_secs(5) {
-            mainloop.unlock();
-            mainloop.stop();
-            return Err("Timeout waiting for PulseAudio context".to_string());
-        }
-        mainloop.wait();
-    }
-
-    let introspector = context.introspect();
-
-    // ── Which sink is the server default? ──
-    let default_sink: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-    let server_done: Arc<(Mutex<bool>, Condvar)> = Arc::new((Mutex::new(false), Condvar::new()));
-    {
-        let sink_slot = Arc::clone(&default_sink);
-        let done = Arc::clone(&server_done);
-        let _op = introspector.get_server_info(move |info| {
-            if let Some(name) = info.default_sink_name.as_ref() {
-                *sink_slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(name.to_string());
-            }
-            signal(&done);
-        });
-        mainloop.unlock();
-        wait_for(&server_done);
-        mainloop.lock();
-    }
-    let default_sink = default_sink.lock().unwrap_or_else(|e| e.into_inner()).clone();
-
-    // ── Enumerate the sinks ──
-    let sinks: Arc<Mutex<Vec<AudioSink>>> = Arc::new(Mutex::new(Vec::new()));
-    let list_done: Arc<(Mutex<bool>, Condvar)> = Arc::new((Mutex::new(false), Condvar::new()));
-    {
-        let collected = Arc::clone(&sinks);
-        let done = Arc::clone(&list_done);
-        let default_sink = default_sink.clone();
-        let _op = introspector.get_sink_info_list(move |result| match result {
-            pulse::callbacks::ListResult::Item(sink_info) => {
-                let name = match sink_info.name.as_ref() {
-                    Some(name) => name.to_string(),
-                    // Without a name we cannot open a stream against it.
-                    None => return,
-                };
-                let description = sink_info
-                    .description
-                    .as_ref()
-                    .map(|d| d.to_string())
-                    .unwrap_or_else(|| name.clone());
-                let is_default = default_sink.as_deref() == Some(name.as_str());
-                if let Ok(mut list) = collected.lock() {
-                    list.push(AudioSink {
-                        name,
-                        description,
-                        is_default,
-                    });
-                }
-            }
-            pulse::callbacks::ListResult::End | pulse::callbacks::ListResult::Error => {
-                signal(&done);
-            }
-        });
-        mainloop.unlock();
-        wait_for(&list_done);
-    }
-
-    mainloop.stop();
-
-    let mut devices = sinks.lock().unwrap_or_else(|e| e.into_inner()).clone();
-
-    // Show the active device first so the dropdown opens on the right one.
-    devices.sort_by_key(|sink| !sink.is_default);
-
-    Ok(devices)
 }
 
 #[cfg(test)]
@@ -1525,6 +1398,168 @@ mod tests {
         );
     }
 
+    /// Largest sample-to-sample step of the left channel in `buf[from..to]`
+    /// (interleaved frames).
+    fn max_step(buf: &[f32], from: usize, to: usize) -> f32 {
+        buf.chunks_exact(2)
+            .skip(from.max(1) - 1)
+            .take(to - from.max(1) + 1)
+            .collect::<Vec<_>>()
+            .windows(2)
+            .map(|w| (w[1][0] - w[0][0]).abs())
+            .fold(0.0f32, f32::max)
+    }
+
+    /// Run `input` through `engine` in fragments of `frag` frames, calling
+    /// `at(frame_index, engine)` before each fragment.
+    fn run_fragments(
+        engine: &mut AudioEngine,
+        input: &[f32],
+        frag: usize,
+        mut at: impl FnMut(usize, &mut AudioEngine),
+    ) -> Vec<f32> {
+        let mut out = vec![0.0f32; input.len()];
+        for (i, (inp, o)) in input
+            .chunks(frag * 2)
+            .zip(out.chunks_mut(frag * 2))
+            .enumerate()
+        {
+            at(i * frag, engine);
+            engine.process_audio(inp, o);
+        }
+        out
+    }
+
+    #[test]
+    fn test_eq_change_mid_stream_is_click_free() {
+        // A slider move used to rebuild the band's filter from scratch, zeroing
+        // its history mid-stream, and even keeping the history a one-sample
+        // coefficient switch leaves a step on big jumps (preset changes). A
+        // tone right on the band's centre, cut from +6 dB to -6 dB at once, is
+        // the worst case: the output must change level without a step.
+        // The 32 Hz band with a tone on its centre: bass is where a step is
+        // most audible, because the waveform itself moves so little per
+        // sample. 31.86 Hz puts a peak exactly on the change; at a zero
+        // crossing even a full state reset would leave no visible step.
+        let input = stereo_sine(31.86, 0.3, 48_000);
+        let mut engine = AudioEngine::new();
+        engine.set_eq_band(0, 6.0);
+        let change_at = 24_480;
+        let out = run_fragments(&mut engine, &input, 480, |frame, e| {
+            if frame == change_at {
+                e.set_eq_band(0, -6.0);
+            }
+        });
+
+        let around = max_step(&out, change_at - 480, change_at + 2_400);
+        let before = max_step(&out, change_at - 9_600, change_at - 480);
+        let after = max_step(&out, change_at + 9_600, change_at + 19_200);
+        println!(
+            "EQ +6 -> -6 dB: step around change {around:.4}, before {before:.4}, after {after:.4}"
+        );
+        assert!(
+            around <= before.max(after) * 1.1,
+            "EQ change produced a discontinuity: {around:.4} vs {:.4}",
+            before.max(after)
+        );
+    }
+
+    #[test]
+    fn test_power_toggle_crossfades_and_bypass_is_exact() {
+        // Off is now a true bypass (the original audio, unchanged), reached
+        // through a short crossfade instead of a hard switch. Bass Boost on a
+        // 100 Hz tone makes processed and original very different, so a hard
+        // switch would show up as a large step.
+        let input = stereo_sine(100.49, 0.4, 48_000); // a peak lands on the toggle
+        let mut engine = AudioEngine::new();
+        load_preset(&mut engine, 5); // Bass Boost
+        let toggle_at = 24_480;
+        let out = run_fragments(&mut engine, &input, 480, |frame, e| {
+            if frame == toggle_at {
+                e.set_power(false);
+            }
+        });
+
+        let around = max_step(&out, toggle_at - 480, toggle_at + 2_400);
+        let wet = max_step(&out, toggle_at - 9_600, toggle_at - 480);
+        let dry = max_step(&input, toggle_at + 4_800, toggle_at + 9_600);
+        println!("power toggle: step {around:.4}, processed {wet:.4}, original {dry:.4}");
+        assert!(
+            around <= wet.max(dry) * 1.1,
+            "power toggle clicked: {around:.4} vs {:.4}",
+            wet.max(dry)
+        );
+
+        // 20 ms later the output must be the input, bit for bit.
+        let settled = (toggle_at + 1_920) * 2;
+        assert_eq!(
+            &out[settled..],
+            &input[settled..],
+            "bypass altered the audio"
+        );
+    }
+
+    #[test]
+    fn test_quiet_passages_are_not_muted() {
+        // The old gate zeroed anything under -60 dBFS RMS, so fade-outs and
+        // soft passages vanished. Only true digital silence may be skipped.
+        let input = stereo_sine(440.0, 3e-4, 4_800); // about -73 dBFS RMS
+        let mut engine = AudioEngine::new();
+        let out = settle(&mut engine, &input, 4);
+        let g = gain_db(&input, &out);
+        println!("quiet passage gain: {g:+.2} dB");
+        assert!(
+            g.abs() < 0.1,
+            "quiet audio was altered or muted: {g:+.2} dB"
+        );
+    }
+
+    #[test]
+    fn test_visualizer_runs_on_small_fragments() {
+        // Capture now arrives in ~10 ms fragments; the FFT used to need 1024
+        // samples in a single call and would never have run.
+        let input = stereo_sine(1000.0, 0.5, 4_800);
+        let mut engine = AudioEngine::new();
+        run_fragments(&mut engine, &input, 480, |_, _| {});
+        let peak = engine.get_fft_data().iter().cloned().fold(0.0f32, f32::max);
+        assert!(peak > 10.0, "visualizer idle on small fragments: {peak:.2}");
+    }
+
+    #[test]
+    fn test_reverb_tail_survives_the_end_of_input() {
+        // The silence gate must not chop the ambiance tail the instant a
+        // track ends, but must stop processing once silence is real.
+        let mut engine = AudioEngine::new();
+        engine.set_effect("ambiance", 100.0);
+        let burst = stereo_sine(500.0, 0.4, 24_000);
+        settle(&mut engine, &burst, 1);
+
+        let silence = vec![0.0f32; 9_600]; // 100 ms
+        let mut out = vec![0.0f32; silence.len()];
+        engine.process_audio(&silence, &mut out);
+        let tail = rms(&out);
+        for _ in 0..30 {
+            engine.process_audio(&silence, &mut out); // 3 more seconds
+        }
+        println!("reverb tail RMS right after input stops: {tail:.5}");
+        assert!(tail > 1e-3, "reverb tail was cut off");
+        assert!(
+            out.iter().all(|&s| s == 0.0),
+            "output not silent after the hangover"
+        );
+    }
+
+    #[test]
+    fn test_odd_or_mismatched_buffers_are_handled() {
+        let mut engine = AudioEngine::new();
+        let input = vec![0.1f32; 7];
+        let mut short = vec![0.0f32; 4];
+        engine.process_audio(&input, &mut short); // must not panic
+        let mut empty: Vec<f32> = Vec::new();
+        engine.process_audio(&input, &mut empty);
+        assert!(short.iter().all(|s| s.is_finite()));
+    }
+
     #[test]
     fn test_every_shipped_preset_stays_within_headroom() {
         // Guards the combination that actually reaches users: a preset's EQ
@@ -1535,9 +1570,8 @@ mod tests {
             // Broadband, slightly decorrelated so surround and the reverb engage.
             let t = i as f32;
             frame[0] = 0.22 * (t * 0.01).sin() + 0.18 * (t * 0.21).sin() + 0.12 * (t * 0.93).sin();
-            frame[1] = 0.22 * (t * 0.01 + 0.5).sin()
-                + 0.18 * (t * 0.19).sin()
-                + 0.12 * (t * 0.87).sin();
+            frame[1] =
+                0.22 * (t * 0.01 + 0.5).sin() + 0.18 * (t * 0.19).sin() + 0.12 * (t * 0.87).sin();
         }
 
         for (index, name) in PRESET_NAMES.iter().enumerate() {
