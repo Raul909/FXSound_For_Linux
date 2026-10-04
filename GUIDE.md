@@ -46,7 +46,7 @@ sudo dnf install ./fxsound-linux-1.2.0-1.x86_64.rpm   # openSUSE: sudo zypper in
 
 ```bash
 sudo snap install fxsound-linux
-sudo snap connect fxsound-linux:audio-record   # lets FXSound process system audio
+sudo snap connect fxsound-linux:audio-record   # needed on some systems to process system audio
 ```
 
 ### Arch Linux (AUR)

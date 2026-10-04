@@ -76,7 +76,7 @@ Grab the right build for your system from the landing page:
 ### 📦 Snap Store (Ubuntu, Linux Mint, etc.)
 ```bash
 sudo snap install fxsound-linux
-sudo snap connect fxsound-linux:audio-record   # lets FXSound process system audio
+sudo snap connect fxsound-linux:audio-record   # needed on some systems to process system audio
 ```
 
 ### 🐧 AppImage (Universal Linux — works everywhere, incl. Arch)

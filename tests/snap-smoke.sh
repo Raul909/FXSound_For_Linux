@@ -61,14 +61,24 @@ launch() {
         snap run fxsound-linux
 }
 
-# Phase 1, a fresh install: only the automatically connected plugs, so no
-# permission to record. FXSound must stay up and say what to do.
+# Phase 1, a fresh install: only the automatically connected plugs. Whether
+# that may record depends on the audio server — PipeWire 1.0 (Ubuntu 24.04)
+# has no snap audio policy and allows it; newer builds and Ubuntu's
+# PulseAudio require audio-record. Either way FXSound must stay up, and
+# either route correctly or leave the system's output alone.
 echo "=== launching the snap without audio-record"
 launch
 sleep 25
-expect "keeps running without recording permission" running
-expect "does not take over the default output" [ "$(pactl get-default-sink)" = hw_speakers ]
-echo "  what it reported:"; grep -E "WARN|ERROR|Routing" "$LOG" | tail -5 | sed 's/^/    /'
+expect "keeps running on a fresh install" running
+if grep -q "Routing system audio through FXSound" "$LOG"; then
+    echo "  (this audio server lets snaps record without audio-record)"
+    expect "routes correctly on a fresh install" sh -c \
+        '[ "$(pactl get-default-sink)" = fxsound_sink ] && pactl list sink-inputs | grep -q "FXSound Output"'
+else
+    expect "leaves the default output alone without recording permission" \
+        [ "$(pactl get-default-sink)" = hw_speakers ]
+fi
+echo "  what it reported:"; grep -E "WARN|ERROR|Routing" "$LOG" | grep -v "Permission denied" | tail -5 | sed 's/^/    /'
 import -window root "$SHOTS/snap-window-no-record.png" 2>/dev/null || true
 systemctl --user stop fxsound-smoke
 wait_for 10 sh -c '! systemctl --user is-active --quiet fxsound-smoke'

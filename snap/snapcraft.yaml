@@ -20,8 +20,9 @@ apps:
     extensions: [gnome]
     plugs:
       - audio-playback
-      # Needed to process system audio. If FXSound reports it can't reach the
-      # audio server: sudo snap connect fxsound-linux:audio-record
+      # Some audio servers (newer PipeWire builds, Ubuntu's PulseAudio) only
+      # let snaps record with this connected; it is not connected
+      # automatically: sudo snap connect fxsound-linux:audio-record
       - audio-record
       - pulseaudio
       - desktop
