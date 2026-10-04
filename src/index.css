@@ -611,11 +611,20 @@ select option {
   color: var(--green);
 }
 
+/* No audio server, no output device, or setup failed — see the message. */
+.status-bar__dot--error {
+  background: var(--accent);
+}
+
+.status-bar__text--error {
+  color: var(--accent);
+}
+
 .status-bar__info {
   font-size: 10px;
   color: var(--text-dim);
   font-weight: 500;
-  max-width: 200px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
