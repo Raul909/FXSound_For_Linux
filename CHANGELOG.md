@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.0] - 2026-10-04
+
+### Fixed
+- **The window no longer freezes a few seconds after launch ([#510](https://github.com/Raul909/FXSound_For_Linux/issues/510)).** Listing the output devices waited on the audio server from the UI thread, for a signal that never came, so every launch hung until the desktop offered to force-quit it — the `Killed` / exit code 137 in #511. The UI no longer talks to the audio server at all, every wait on the server has a time limit, and a stopped or restarting server now shows "Waiting for the audio server…" instead of freezing the window.
+- **No more doubled audio or feedback loop ([#511](https://github.com/Raul909/FXSound_For_Linux/issues/511)).** FXSound recorded what the speakers were playing and played its processed copy into the same speakers: you heard the original and the processed version on top of each other, and FXSound re-recorded its own output, so the sound echoed every couple of seconds and grew louder each time. FXSound now adds its own **FXSound** output device and makes it the default; applications play into it and FXSound plays the result on your real speakers or headphones — exactly once.
+- **The Snap no longer aborts at launch** with `libEGL fatal: did not find extension DRI_Mesa version 1` (#511). It bundled its own Mesa 23.2 next to the GNOME runtime's Mesa 25.2, and the two clashed; it now uses the runtime's libraries only, which also makes it far smaller. It now also shows up in the applications menu — it shipped without a menu entry or icon.
+- **No more clicks when moving the EQ sliders or switching presets.** Every slider step rebuilt that band's filter from scratch, restarting it from silence mid-waveform — an audible click on each step of a drag, worst in the bass. Filters now keep their state and glide to new settings over 20 ms, and the power button crossfades instead of cutting.
+- **Quiet passages and fade-outs are no longer muted.** The "silence" gate cut in below −60 dBFS, which is quiet music rather than silence, and chopped the Ambiance reverb tail the moment a track ended. Only true digital silence pauses processing now, and only after the tails have rung out.
+- **Power off is now a true bypass**: audio keeps playing, unprocessed. It used to output silence, which only made sense while the original audio was also playing directly — the doubling above.
+- The visualizer only updated when audio arrived in large blocks; it now works however the audio server delivers it.
+- The `.deb` and `.rpm` now declare their dependency on libpulse, without which the app could not start on a minimal install. The unused tray-icon dependency (libayatana-appindicator) is gone.
+
+### Added
+- **Settings are remembered.** EQ, effects, preset, power state and output device are restored at launch; every launch used to start over on the Music preset.
+- **The output device follows your system.** Pick a device in your sound settings or plug in headphones and FXSound plays there; unplug it and FXSound falls back to another device, then returns when it is plugged back in. The device list updates live.
+- Launching FXSound while it is already running brings the open window to the front instead of starting a competing copy.
+- FXSound restores your audio exactly as it was when it quits — including on logout, `Ctrl+C` or `kill` (SIGTERM/SIGINT/SIGHUP). If it was killed outright, launching it again cleans up, as does the new `scripts/reset-audio.sh`.
+- The status bar says when audio is unavailable and why.
+- Logs are written to `~/.local/share/com.fxsound.linux/logs/`, so bug reports can include them.
+- Continuous integration on every pull request: lint, unit tests, end-to-end routing tests against real PipeWire and PulseAudio servers (`tests/audio-routing/`), and a Snap that is built, installed and launched under strict confinement.
+
+### Changed
+- `scripts/setup-audio.sh` is replaced by `scripts/reset-audio.sh`. The old script wired a loopback into a sink of the same name, which combined with the app fed audio back into itself.
+
+### Known limitations
+- If FXSound is killed outright (`kill -9`, a crash), its device stays the default output and you hear nothing until FXSound is started again or you choose your speakers in the sound settings (or run `scripts/reset-audio.sh`).
+- On native PulseAudio (not PipeWire) the FXSound device and the sound card run on separate clocks. FXSound keeps the delay in check by skipping ahead if its output queue grows, which can rarely be heard as a tiny skip; under PipeWire both run on one clock and this does not happen.
+
 ## [1.1.4] - 2026-08-17
 
 ### Fixed

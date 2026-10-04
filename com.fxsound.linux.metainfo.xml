@@ -15,7 +15,7 @@
       <li>5 Audio Effects: Fidelity, Ambiance, Dynamic Boost, 3D Surround, HyperBass</li>
       <li>10 Built-in Presets</li>
       <li>Real-time Audio Visualizer</li>
-      <li>PulseAudio Integration</li>
+      <li>System-wide processing through an "FXSound" output device (PipeWire and PulseAudio)</li>
     </ul>
   </description>
   <launchable type="desktop-id">com.fxsound.linux.desktop</launchable>
@@ -24,6 +24,12 @@
   <developer_name>FXSound Linux Contributors</developer_name>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.2.0" date="2026-10-04">
+      <description>
+        <p>Fixes the window freezing a few seconds after launch, and audio playing twice and echoing. FXSound now adds its own "FXSound" output device: applications play into it and FXSound plays the enhanced result on your real speakers or headphones, exactly once. The Snap no longer aborts at launch with an EGL error and now appears in the applications menu.</p>
+        <p>Settings are remembered between launches, the output device follows your system's sound settings and hot-plugged headphones, and turning processing off is now a true bypass. EQ and preset changes no longer click, and quiet passages are no longer muted.</p>
+      </description>
+    </release>
     <release version="1.1.4" date="2026-08-17">
       <description>
         <p>Audio quality and correctness release. HyperBass is now a real low-shelf filter rather than a broadband volume boost; Dynamic Boost is a proper compressor with makeup gain instead of a waveshaper that quietly attenuated and distorted; Fidelity enhances treble instead of colouring bass; and the block-based limiter that caused pumping on loud material has been replaced with a sample-accurate one.</p>
