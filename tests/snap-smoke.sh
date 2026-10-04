@@ -21,6 +21,17 @@ LOG="$SHOTS/snap-app.log"
 PASS=0; FAIL=0
 expect() { local what="$1"; shift; if "$@"; then echo "  PASS: $what"; PASS=$((PASS + 1)); else echo "  FAIL: $what"; FAIL=$((FAIL + 1)); fi; }
 wait_for() { local t=$1; shift; for _ in $(seq 1 $((t * 10))); do "$@" >/dev/null 2>&1 && return 0; sleep 0.1; done; return 1; }
+# pipewire-pulse answers "Not supported" until WirePlumber's default metadata
+# exists, so retry until the default has actually changed.
+set_default() {
+    for _ in $(seq 1 50); do
+        pactl set-default-sink "$1" 2>/dev/null
+        [ "$(pactl get-default-sink)" = "$1" ] && return 0
+        sleep 0.2
+    done
+    echo "could not make $1 the default" >&2
+    return 1
+}
 
 echo "=== installing"
 sudo snap install --dangerous "$SNAP_FILE"
@@ -47,7 +58,7 @@ for hw in hw_speakers:Speakers hw_headphones:Headphones; do
     pw-cli create-node adapter "{ factory.name=support.null-audio-sink node.name=${hw%%:*} node.description=${hw##*:} media.class=Audio/Sink object.linger=true audio.position=[FL FR] }" >/dev/null
 done
 wait_for 10 sh -c 'pactl list short sinks | grep -q hw_headphones'
-pactl set-default-sink hw_speakers
+set_default hw_speakers
 pactl list short sinks
 
 Xvfb :99 -screen 0 1280x900x24 >/dev/null 2>&1 &
@@ -83,7 +94,7 @@ import -window root "$SHOTS/snap-window-no-record.png" 2>/dev/null || true
 systemctl --user stop fxsound-smoke
 wait_for 10 sh -c '! systemctl --user is-active --quiet fxsound-smoke'
 expect "no FXSound device left behind" sh -c '! pactl list short sinks | grep -q fxsound_sink'
-pactl set-default-sink hw_speakers
+set_default hw_speakers
 : >"$LOG"
 
 # Phase 2: exactly what the docs tell users to run.
