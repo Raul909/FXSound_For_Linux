@@ -105,6 +105,44 @@ jobs:
           path: /tmp/app.log
           retention-days: 7
 
+  # ── Release bundles: build them the way release.yml does ─────────────────
+  # The .deb/.rpm/AppImage are otherwise only built on a tag push, after it
+  # is too late to fix a packaging mistake.
+  bundles:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libpulse-dev rpm
+
+      - run: npm ci
+
+      - name: Build bundles
+        run: npm run tauri:build
+
+      - name: Check declared dependencies
+        run: |
+          DEB=$(ls src-tauri/target/release/bundle/deb/*.deb)
+          RPM=$(ls src-tauri/target/release/bundle/rpm/*.rpm)
+          dpkg-deb -f "$DEB" Depends | tee /dev/stderr | grep -q 'libpulse0'
+          rpm -qpR "$RPM" | tee /dev/stderr | grep -q 'libpulse.so.0()(64bit)'
+          ls -la src-tauri/target/release/bundle/appimage/*.AppImage
+
   # ── Snap: build it, then launch it under real strict confinement ─────────
   # 1.1.4's snap aborted at launch (#511): it bundled a second Mesa that
   # clashed with the GNOME platform's. Only a real install shows that.
@@ -121,7 +159,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pipewire pipewire-pulse wireplumber pipewire-bin \
-            pulseaudio-utils dbus-x11 sox python3-numpy xvfb x11-utils imagemagick
+            pulseaudio-utils dbus-user-session sox python3-numpy xvfb x11-utils imagemagick
 
       - name: Smoke-test the snap
         run: SHOTS="$PWD/snap-smoke" tests/snap-smoke.sh "${{ steps.snapcraft.outputs.snap }}"
