@@ -59,9 +59,16 @@ remove_hw() { # <name>  ("unplug")
 }
 add_hw hw_speakers Speakers
 add_hw hw_headphones Headphones
-pactl set-default-sink hw_speakers
-sleep 0.5
+# Until WirePlumber has published its "default" metadata, pipewire-pulse
+# answers set-default-sink with "Not supported" and the default stays
+# wherever WirePlumber put it — so retry until it has actually taken.
+for _ in $(seq 1 50); do
+    pactl set-default-sink hw_speakers 2>/dev/null
+    [ "$(pactl get-default-sink)" = hw_speakers ] && break
+    sleep 0.2
+done
 echo "default sink: $(pactl get-default-sink)"
+[ "$(pactl get-default-sink)" = hw_speakers ] || { echo "could not set the default sink" >&2; return 1 2>/dev/null || exit 1; }
 pactl list short sinks
 
 Xvfb :99 -screen 0 1280x900x24 >/tmp/xvfb.log 2>&1 &
