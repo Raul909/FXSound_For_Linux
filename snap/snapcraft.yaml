@@ -4,9 +4,9 @@ version: '1.1.4'
 summary: Audio enhancer with 10-band EQ and effects
 description: |
   A free, open-source audio enhancer for Linux with a 10-band equalizer,
-  effects, presets, and real-time audio visualization. Processes system
-  audio in real time via PulseAudio/PipeWire.
-
+  effects, presets, and real-time audio visualization. Adds an "FXSound"
+  output device and processes everything your system plays through it,
+  via PulseAudio or PipeWire.
 grade: stable
 confinement: strict
 
@@ -16,9 +16,12 @@ architectures:
 apps:
   fxsound-linux:
     command: bin/fxsound-linux
+    # Menu entry and icon come from snap/gui/.
     extensions: [gnome]
     plugs:
       - audio-playback
+      # Needed to process system audio. If FXSound reports it can't reach the
+      # audio server: sudo snap connect fxsound-linux:audio-record
       - audio-record
       - pulseaudio
       - desktop
@@ -41,11 +44,11 @@ parts:
       - libgtk-3-dev
       - libayatana-appindicator3-dev
       - librsvg2-dev
-    stage-packages:
-      - libpulse0
-      - libwebkit2gtk-4.1-0
-      - libgtk-3-0
-      - libayatana-appindicator3-1
+    # No stage-packages: the gnome extension's gnome-42-2204 platform snap
+    # already provides WebKitGTK 4.1, GTK 3, libpulse and Mesa. Staging them
+    # again pulled a second, older Mesa (23.2) into the snap alongside the
+    # platform's (25.2), and mixing the two aborted every launch with
+    # "libEGL fatal: did not find extension DRI_Mesa version 1".
     override-build: |
       # Install Rust
       curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
@@ -55,9 +58,9 @@ parts:
       curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
       apt-get install -y nodejs
 
-      # Build frontend + Tauri
+      # Build frontend + Tauri binary (the snap needs no .deb/.rpm/AppImage)
       npm ci
-      npm run tauri:build
+      npm run tauri -- build --no-bundle
 
       install -Dm755 src-tauri/target/release/fxsound-linux \
         "$SNAPCRAFT_PART_INSTALL/bin/fxsound-linux"
