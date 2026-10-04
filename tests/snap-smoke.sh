@@ -30,9 +30,6 @@ sudo snap install gnome-42-2204 gtk-common-themes >/dev/null 2>&1 || true
 sudo snap connect fxsound-linux:gnome-42-2204 gnome-42-2204 2>/dev/null || true
 sudo snap connect fxsound-linux:gtk-3-themes gtk-common-themes:gtk-3-themes 2>/dev/null || true
 sudo snap connect fxsound-linux:icon-themes gtk-common-themes:icon-themes 2>/dev/null || true
-# Recording is what FXSound does; audio-record is not connected automatically.
-sudo snap connect fxsound-linux:audio-record
-sudo snap connect fxsound-linux:pulseaudio :pulseaudio 2>/dev/null || true
 snap connections fxsound-linux
 
 echo "=== user session"
@@ -57,11 +54,33 @@ Xvfb :99 -screen 0 1280x900x24 >/dev/null 2>&1 &
 export DISPLAY=:99
 python3 "$HERE/audio-routing/analyze.py" gen /tmp/probe.wav
 
-echo "=== launching the snap"
-systemd-run --user --collect --unit=fxsound-smoke -E DISPLAY=:99 \
-    -p StandardOutput="append:$LOG" -p StandardError="append:$LOG" \
-    snap run fxsound-linux
 running() { systemctl --user is-active --quiet fxsound-smoke; }
+launch() {
+    systemd-run --user --collect --unit=fxsound-smoke -E DISPLAY=:99 \
+        -p StandardOutput="append:$LOG" -p StandardError="append:$LOG" \
+        snap run fxsound-linux
+}
+
+# Phase 1, a fresh install: only the automatically connected plugs, so no
+# permission to record. FXSound must stay up and say what to do.
+echo "=== launching the snap without audio-record"
+launch
+sleep 25
+expect "keeps running without recording permission" running
+expect "does not take over the default output" [ "$(pactl get-default-sink)" = hw_speakers ]
+echo "  what it reported:"; grep -E "WARN|ERROR|Routing" "$LOG" | tail -5 | sed 's/^/    /'
+import -window root "$SHOTS/snap-window-no-record.png" 2>/dev/null || true
+systemctl --user stop fxsound-smoke
+wait_for 10 sh -c '! systemctl --user is-active --quiet fxsound-smoke'
+expect "no FXSound device left behind" sh -c '! pactl list short sinks | grep -q fxsound_sink'
+pactl set-default-sink hw_speakers
+: >"$LOG"
+
+# Phase 2: exactly what the docs tell users to run.
+sudo snap connect fxsound-linux:audio-record
+snap connections fxsound-linux | grep -E "audio-|pulseaudio"
+echo "=== launching the snap with audio-record connected"
+launch
 fx_output() {
     local idx
     idx=$(pactl list sink-inputs | awk '/^Sink Input #/{s=""} /^\tSink: /{s=$2} /media.name = "FXSound Output"/{print s; exit}')
