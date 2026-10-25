@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+- **Top bar window controls and dragging**: Added a dedicated top bar (`data-tauri-drag-region`) inside the application header featuring authentic minimize (`—`) and close (`✕`) buttons, along with interactive window dragging support (`start_dragging` IPC and `core:window:allow-start-dragging`).
+- **Frameless layout calibration**: Disabled native operating system titlebar decorations (`decorations: false`), removed redundant outer margin padding, and anchored the status bar flush to the bottom edge.
+- **Preset import and export**: Added portable `.fxpreset` JSON format interchange for saving and sharing custom EQ curves and DSP effect profiles. Uses native file dialogs via `rfd` and XDG Desktop Portals.
+
+### Fixed
+- Prevented vertical scrollbar overflow by calibrating application window dimensions to 480x650 and enforcing `overflow: hidden;` on the root container.
+
+
 ## [1.2.0] - 2026-10-04
 
 ### Fixed

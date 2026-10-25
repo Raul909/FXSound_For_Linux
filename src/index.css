@@ -75,13 +75,16 @@
   padding: 0;
 }
 
+html,
 body {
   margin: 0;
   padding: 0;
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--bg-deepest);
+  background: var(--bg-dark);
+  overflow: hidden;
+  height: 100%;
 }
 
 select {
@@ -97,33 +100,104 @@ select option {
 /* ---- App Container & Window ---- */
 
 .app-container {
-  min-height: 100vh;
-  background: var(--bg-deepest);
+  height: 100vh;
+  background: var(--bg-dark);
   display: flex;
   justify-content: center;
-  padding: 20px;
-  /* A tiling WM or a short screen can force the window below its minimum, so
-     let the panel scroll rather than hiding the status bar off the bottom. */
-  overflow-y: auto;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
 }
 
 .app-window {
   width: 480px;
-  /* Tiling window managers (i3/sway/Hyprland) and small displays can force a
-     narrower viewport than the window we ask for, so never overflow it. */
+  height: 100%;
   max-width: 100%;
   flex-shrink: 0;
-  /* Centres vertically like `align-items: center` would, but collapses to zero
-     when space runs out instead of pushing the top of the panel out of reach. */
-  margin: auto;
+  margin: 0;
   background: var(--bg-dark);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.8),
-    0 0 1px rgba(230, 52, 98, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  border: none;
+  box-shadow: none;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ---- Title Bar (Window Drag Region & Controls) ---- */
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 8px 0 14px;
+  background: var(--bg-deepest);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.titlebar:active {
+  cursor: grabbing;
+}
+
+.titlebar__drag {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  cursor: inherit;
+}
+
+.titlebar__brand {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  opacity: 0.8;
+}
+
+.titlebar__brand-fx {
+  color: var(--accent);
+}
+
+.titlebar__controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.titlebar__btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.titlebar__btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+}
+
+.titlebar__btn--close:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.titlebar__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 
@@ -207,13 +281,48 @@ select option {
 
 /* ---- Dropdown ---- */
 
+.dropdown__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
 .dropdown__label {
   font-size: 9px;
   color: var(--text-dim);
   letter-spacing: 1.5px;
-  margin-bottom: 3px;
   font-weight: 600;
   text-transform: uppercase;
+}
+
+.preset-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preset-actions__btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.preset-actions__btn:hover {
+  color: var(--accent-light);
+  border-color: rgba(230, 52, 98, 0.4);
+  background: rgba(230, 52, 98, 0.1);
+}
+
+.preset-actions__btn:active {
+  transform: scale(0.95);
 }
 
 .dropdown__wrapper {
@@ -579,6 +688,8 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .status-bar__indicator {

@@ -199,11 +199,114 @@ export default function App() {
     audio.state === "error" ? "error"
       : audio.state === "running" && powered ? "active" : null;
 
+  // ---------- Window Controls ----------
+
+  const handleMinimize = useCallback(() => {
+    call("minimize_window").catch(() => {
+      import("@tauri-apps/api/window")
+        .then(({ getCurrentWindow }) => getCurrentWindow().minimize())
+        .catch((err) => console.warn("Could not minimize window:", err));
+    });
+  }, []);
+
+  const handleDragStart = useCallback((e) => {
+    if (e.buttons === 1 && !e.target.closest("button")) {
+      call("start_dragging").catch(() => {
+        import("@tauri-apps/api/window")
+          .then(({ getCurrentWindow }) => getCurrentWindow().startDragging())
+          .catch((err) => console.warn("Could not start dragging:", err));
+      });
+    }
+  }, []);
+
+  const handleClose = useCallback(() => {
+    call("close_window").catch(() => {
+      import("@tauri-apps/api/window")
+        .then(({ getCurrentWindow }) => getCurrentWindow().close())
+        .catch((err) => console.warn("Could not close window:", err));
+    });
+  }, []);
+
+  // ---------- Preset Import / Export ----------
+
+  const fileInputRef = React.useRef(null);
+
+  const handleExportPreset = useCallback(() => {
+    const name = preset === "Custom" ? "My Custom Preset" : preset;
+    call("export_preset", { name })
+      .then((savedPath) => {
+        if (savedPath) {
+          console.log("Preset exported successfully to:", savedPath);
+        }
+      })
+      .catch((err) => console.error("Export failed:", err));
+  }, [preset]);
+
+  const handleImportPreset = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const onFileSelected = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const json = ev.target?.result;
+      if (typeof json !== "string") return;
+      call("import_preset", { json })
+        .then((result) => {
+          setEq([...result.eq]);
+          setFx({ ...result.effects });
+          setPreset("Custom");
+        })
+        .catch((err) => console.error("Import failed:", err));
+    };
+    reader.readAsText(file);
+    // Reset so the same file can be re-imported
+    e.target.value = "";
+  }, []);
+
   // ---------- Render ----------
 
   return (
     <div className="app-container">
       <div className="app-window">
+
+        {/* ---- Window Title Bar (Drag region + Minimize / Close controls) ---- */}
+        <div className="titlebar" data-tauri-drag-region onMouseDown={handleDragStart}>
+          <div className="titlebar__drag" data-tauri-drag-region onMouseDown={handleDragStart}>
+            <span className="titlebar__brand" data-tauri-drag-region>
+              <span className="titlebar__brand-fx">FX</span>SOUND
+            </span>
+          </div>
+          <div className="titlebar__controls">
+            <button
+              className="titlebar__btn titlebar__btn--minimize"
+              onClick={handleMinimize}
+              aria-label="Minimize Window"
+              title="Minimize"
+            >
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10">
+                <rect x="1" y="4.5" width="8" height="1.2" rx="0.6" fill="currentColor" />
+              </svg>
+            </button>
+            <button
+              className="titlebar__btn titlebar__btn--close"
+              onClick={handleClose}
+              aria-label="Close Window"
+              title="Close"
+            >
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10">
+                <path
+                  d="M1.5 1.5L8.5 8.5M8.5 1.5L1.5 8.5"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
 
         {/* ---- Header: Brand + Power Button + Dropdowns ---- */}
         <div className="header">
@@ -227,7 +330,33 @@ export default function App() {
           <div className="header__dropdowns">
             {dropdowns.map(({ label, value: val, options, onChange, disabled }) => (
               <div key={label} className="dropdown">
-                <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
+                <div className="dropdown__header">
+                  <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
+                  {label === "PRESET" && (
+                    <div className="preset-actions">
+                      <button
+                        className="preset-actions__btn"
+                        onClick={handleImportPreset}
+                        title="Import Preset (Load from File)"
+                        aria-label="Import Preset from File"
+                      >
+                        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                        </svg>
+                      </button>
+                      <button
+                        className="preset-actions__btn"
+                        onClick={handleExportPreset}
+                        title="Export Preset (Save to File)"
+                        aria-label="Export Current Preset to File"
+                      >
+                        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="dropdown__wrapper">
                   <select
                     value={val}
@@ -248,6 +377,15 @@ export default function App() {
               </div>
             ))}
           </div>
+
+          {/* Hidden file input for preset import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".fxpreset,.json"
+            style={{ display: "none" }}
+            onChange={onFileSelected}
+          />
         </div>
 
         {/* ---- Visualizer ---- */}

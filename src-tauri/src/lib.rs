@@ -174,6 +174,132 @@ fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
     Ok(state.engine().get_fft_data())
 }
 
+/// Minimize the application window.
+#[tauri::command]
+fn minimize_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.minimize().map_err(|e| e.to_string())
+}
+
+/// Start dragging the window.
+#[tauri::command]
+fn start_dragging(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.start_dragging().map_err(|e| e.to_string())
+}
+
+/// Close the application window and terminate the application cleanly.
+#[tauri::command]
+fn close_window(app: tauri::AppHandle, window: tauri::WebviewWindow) -> Result<(), String> {
+    let _ = window.close();
+    app.exit(0);
+    Ok(())
+}
+
+// ── Preset Import / Export ──
+
+/// Portable preset format exchanged with the frontend.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PresetFile {
+    format: String,
+    version: String,
+    name: String,
+    #[serde(default)]
+    author: String,
+    eq: [f32; 10],
+    effects: settings::Effects,
+}
+
+/// Export the current EQ + effects as a JSON preset file using native save dialog.
+#[tauri::command]
+fn export_preset(state: State<AppState>, name: String) -> Result<Option<String>, String> {
+    let settings = state.settings.get().unwrap_or_default();
+    let preset = PresetFile {
+        format: "fxsound-preset".into(),
+        version: "1.0".into(),
+        name: name.clone(),
+        author: String::new(),
+        eq: settings.eq,
+        effects: settings.effects,
+    };
+    let json = serde_json::to_string_pretty(&preset).map_err(|e| e.to_string())?;
+
+    let sanitized = name.replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "_");
+    let default_filename = format!("{sanitized}.fxpreset");
+
+    let file_path = rfd::FileDialog::new()
+        .set_file_name(&default_filename)
+        .add_filter("FXSound Preset (*.fxpreset)", &["fxpreset"])
+        .save_file();
+
+    if let Some(path) = file_path {
+        std::fs::write(&path, json).map_err(|e| format!("Failed to save preset: {e}"))?;
+        log::info!("Preset exported to {:?}", path);
+        Ok(Some(path.to_string_lossy().into_owned()))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Import a preset from a JSON string — returns the preset name.
+#[tauri::command]
+fn import_preset(state: State<AppState>, json: String) -> Result<ImportedPreset, String> {
+    let file: PresetFile =
+        serde_json::from_str(&json).map_err(|e| format!("Invalid preset file: {e}"))?;
+
+    if file.format != "fxsound-preset" {
+        return Err("Not a valid FXSound preset file".into());
+    }
+    if file.eq.len() != 10 {
+        return Err("Preset must have exactly 10 EQ bands".into());
+    }
+
+    // Sanitize values
+    let eq: [f32; 10] = std::array::from_fn(|i| {
+        let v = file.eq[i];
+        if v.is_finite() { v.clamp(-12.0, 12.0) } else { 0.0 }
+    });
+
+    let clamp_fx = |v: f32| if v.is_finite() { v.clamp(0.0, 100.0) } else { 0.0 };
+    let effects = settings::Effects {
+        fidelity: clamp_fx(file.effects.fidelity),
+        ambiance: clamp_fx(file.effects.ambiance),
+        dynamic: clamp_fx(file.effects.dynamic),
+        surround: clamp_fx(file.effects.surround),
+        bass: clamp_fx(file.effects.bass),
+    };
+
+    // Apply to engine
+    {
+        let mut engine = state.engine();
+        for (band, &gain) in eq.iter().enumerate() {
+            engine.set_eq_band(band, gain);
+        }
+        for (name, value) in effects.iter() {
+            engine.set_effect(name, value);
+        }
+    }
+
+    // Persist
+    let name = file.name.clone();
+    state.settings.update(|s| {
+        s.eq = eq;
+        s.effects = effects.clone();
+        s.preset = "Custom".into();
+    });
+
+    Ok(ImportedPreset {
+        name,
+        eq: eq.to_vec(),
+        effects,
+    })
+}
+
+#[derive(serde::Serialize)]
+struct ImportedPreset {
+    name: String,
+    eq: Vec<f32>,
+    effects: settings::Effects,
+}
+
 // ── App Initialization ──
 
 /// Exit cleanly on SIGTERM, SIGINT and SIGHUP (logout, Ctrl+C, `kill`), so the
@@ -346,6 +472,11 @@ pub fn run() {
             get_audio_status,
             set_output_device,
             get_visualizer_data,
+            minimize_window,
+            start_dragging,
+            close_window,
+            export_preset,
+            import_preset,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

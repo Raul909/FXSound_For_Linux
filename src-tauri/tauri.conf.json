@@ -13,13 +13,13 @@
     "windows": [
       {
         "title": "FXSound for Linux",
-        "width": 520,
-        "height": 690,
-        "minWidth": 420,
-        "minHeight": 660,
+        "width": 480,
+        "height": 650,
+        "minWidth": 480,
+        "minHeight": 650,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true,
+        "decorations": false,
         "transparent": false,
         "center": true
       }
