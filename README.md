@@ -36,10 +36,12 @@
     <tr>
       <td align="center"><b>10-Band Equalizer</b></td>
       <td align="center"><b>Studio Effects</b></td>
+      <td align="center"><b>Settings</b></td>
     </tr>
     <tr>
       <td><img src="./public/screenshots/screenshot-eq.png" width="100%" alt="FXSound Linux Equalizer"></td>
       <td><img src="./public/screenshots/screenshot-effects.png" width="100%" alt="FXSound Linux Effects"></td>
+      <td><img src="./public/screenshots/screenshot-settings.png" width="100%" alt="FXSound Linux Settings"></td>
     </tr>
   </table>
 </div>
@@ -61,6 +63,10 @@
 - **Real-time visualizer** — 32-bin FFT spectrum with smooth animation.
 - **One-click bypass** — instant A/B with the power toggle.
 - **Remembers your setup** — EQ, effects, preset and output device are restored at launch; the output follows your sound settings and hot-plugged headphones.
+- **Lives in the tray** — closing the window keeps FXSound running; show, hide, toggle the effects or quit from the tray icon. Optional **start with the system**, hidden in the tray.
+- **Export / import your configuration** — EQ, effects, preset and window options in a JSON file, to back up or move to another PC (the output device stays per machine).
+- **4 languages** — English, Português, Español and 中文 (Simplified), in the window, tray menu and file dialogs. Follows the system language, or pick one in Settings.
+- **Light on the CPU** — the window renders on the GPU where that is known to work and falls back to software by itself if a GPU launch fails; the visualizer stops while the window is hidden or minimized. Idle window: ~3–6% of a core instead of 70–90%.
 - **Universal packaging** — AppImage, `.deb`, `.rpm`, Snap, and AUR.
 
 ---
@@ -130,7 +136,7 @@ Good first areas: **presets**, **UI polish**, and **distro packaging**. Browse t
 
 ## 🗺️ Roadmap
 
-See the [CHANGELOG](./CHANGELOG.md). On deck: **advanced HRTF 3D surround**, **per-app audio routing**, a **tray icon** to keep FXSound running without its window, and **native PipeWire** support.
+See the [CHANGELOG](./CHANGELOG.md). On deck: **advanced HRTF 3D surround**, **per-app audio routing**, and **native PipeWire** support.
 
 ---
 
