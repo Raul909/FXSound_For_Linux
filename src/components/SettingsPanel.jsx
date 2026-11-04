@@ -56,13 +56,11 @@ export default function SettingsPanel({ info, onUi, onAutostart, onExport, onImp
     if (!info) {
         return <div className="settings-panel settings-panel--loading">{t("set.loading")}</div>;
     }
-    const { ui, graphics, tray_available: tray, autostart, language } = info;
+    const { ui, graphics, tray_available: tray, autostart, system_language: systemLanguage } = info;
     const set = (key) => (value) => onUi({ ...ui, [key]: value });
-    const restartNeeded =
-        (ui.render_mode === "gpu" && graphics.renderer !== "gpu") ||
-        (ui.render_mode === "software" && graphics.renderer !== "software") ||
-        (ui.render_mode === "auto" && graphics.reason === "user-choice");
-    const current = LANGUAGES.find((l) => l.code === language)?.name ?? "English";
+    // The backend reports what the next launch would use for the saved mode.
+    const restartNeeded = info.next_renderer != null && info.next_renderer !== graphics.renderer;
+    const systemName = LANGUAGES.find((l) => l.code === systemLanguage)?.name ?? "English";
     const noticeText = notice ? (notice.key ? t(notice.key) : translateMessage(t, notice.text)) : "";
 
     return (
@@ -101,7 +99,7 @@ export default function SettingsPanel({ info, onUi, onAutostart, onExport, onImp
                     value={ui.language}
                     onChange={set("language")}
                     options={[
-                        { value: "auto", label: t("set.languageAuto", { name: current }) },
+                        { value: "auto", label: t("set.languageAuto", { name: systemName }) },
                         ...LANGUAGES.map(({ code, name }) => ({ value: code, label: name })),
                     ]}
                 />

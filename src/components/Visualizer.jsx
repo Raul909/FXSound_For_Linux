@@ -196,7 +196,9 @@ const Visualizer = React.memo(function Visualizer({ powered, active = true }) {
             }
             call("get_visualizer_data")
                 .then((data) => {
-                    if (!data || !data.length) return;
+                    // A reply that lands after the visualizer stopped must not
+                    // repaint stale bars.
+                    if (cancelled || !data || !data.length) return;
                     const src = targetData.current;
                     const ratio = data.length / BAR_COUNT;
                     for (let i = 0; i < BAR_COUNT; i++) {

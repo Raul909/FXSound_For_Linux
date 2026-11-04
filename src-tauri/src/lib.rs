@@ -164,10 +164,7 @@ fn apply_preset_state(
         }
     }
 
-    // A preset name is display text only; keep it short and printable.
-    let preset = preset
-        .filter(|p| !p.is_empty() && p.len() <= 64 && !p.chars().any(char::is_control))
-        .unwrap_or_else(|| "Custom".into());
+    let preset = settings::clean_preset(preset);
     state.settings.update(|s| {
         s.eq = eq;
         for (name, value) in effects {
@@ -205,6 +202,18 @@ struct UiInfo {
     autostart: bool,
     /// Effective language code, for the page to translate itself.
     language: &'static str,
+    /// What "auto" resolves to, for labelling that option.
+    system_language: &'static str,
+    /// What the next launch would render with, to tell when a restart
+    /// changes anything.
+    next_renderer: graphics::Renderer,
+}
+
+/// Reply to a settings change: what depends on it right away.
+#[derive(serde::Serialize)]
+struct UiUpdate {
+    language: &'static str,
+    next_renderer: graphics::Renderer,
 }
 
 #[tauri::command]
@@ -215,12 +224,17 @@ fn get_ui_info(app: AppHandle, state: State<AppState>) -> UiInfo {
         tray_available: state.tray.is_some(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
         language: state.language(),
+        system_language: i18n::resolve("auto"),
+        next_renderer: graphics::next_renderer(
+            state.settings.get().unwrap_or_default().ui.render_mode,
+            state.config_dir.as_deref(),
+        ),
     }
 }
 
 /// Save the window/rendering options. Rendering changes apply next launch.
 #[tauri::command]
-fn set_ui_settings(state: State<AppState>, mut ui: UiSettings) -> Result<&'static str, String> {
+fn set_ui_settings(state: State<AppState>, mut ui: UiSettings) -> Result<UiUpdate, String> {
     if ui.language != "auto" && !i18n::SUPPORTED.contains(&ui.language.as_str()) {
         ui.language = "auto".into();
     }
@@ -228,12 +242,16 @@ fn set_ui_settings(state: State<AppState>, mut ui: UiSettings) -> Result<&'stati
     if ui.render_mode != before.render_mode {
         graphics::forget_failure(state.config_dir.as_deref());
     }
+    let mode = ui.render_mode;
     state.settings.update(|s| s.ui = ui);
     let language = state.language();
     if let Some(tray) = &state.tray {
         tray.relabel(language);
     }
-    Ok(language)
+    Ok(UiUpdate {
+        language,
+        next_renderer: graphics::next_renderer(mode, state.config_dir.as_deref()),
+    })
 }
 
 /// Start FXSound with the desktop session (an XDG autostart entry).
@@ -275,7 +293,8 @@ async fn export_settings(app: AppHandle, state: State<'_, AppState>) -> Result<b
         path.set_extension("json");
     }
     let text = settings::export_json(&state.settings.get().unwrap_or_default());
-    std::fs::write(&path, text).map_err(|e| format!("Could not write {}: {e}", path.display()))?;
+    settings::write_export(&path, &text)
+        .map_err(|e| format!("Could not write {}: {e}", path.display()))?;
     log::info!("Exported configuration to {}", path.display());
     Ok(true)
 }
@@ -306,7 +325,13 @@ async fn import_settings(
     let text = std::fs::read_to_string(&path)
         .map_err(|e| format!("Could not read {}: {e}", path.display()))?;
     let mut imported = settings::import_json(&text)?;
-    imported.output_device = state.settings.get().and_then(|s| s.output_device);
+    let before = state.settings.get().unwrap_or_default();
+    imported.output_device = before.output_device;
+    // Same rule as changing the option by hand: a new rendering choice gets
+    // a fresh try on the GPU.
+    if imported.ui.render_mode != before.ui.render_mode {
+        graphics::forget_failure(state.config_dir.as_deref());
+    }
 
     {
         let mut engine = state.engine();
@@ -356,6 +381,29 @@ fn get_visualizer_data(state: State<AppState>) -> Result<Vec<f32>, String> {
 }
 
 // ── App Initialization ──
+
+/// Whether a StatusNotifier host (the panel side of the tray) is running.
+/// The tray icon registers even when nothing displays it, so this is what
+/// tells whether hiding the window leaves a way back.
+fn tray_host_visible() -> bool {
+    use dbus::blocking::stdintf::org_freedesktop_dbus::Properties;
+    let watcher = "org.kde.StatusNotifierWatcher";
+    let visible = dbus::blocking::Connection::new_session().and_then(|conn| {
+        conn.with_proxy(
+            watcher,
+            "/StatusNotifierWatcher",
+            Duration::from_millis(500),
+        )
+        .get::<bool>(watcher, "IsStatusNotifierHostRegistered")
+    });
+    match visible {
+        Ok(visible) => visible,
+        Err(e) => {
+            log::info!("No tray host found ({e}); starting with the window shown");
+            false
+        }
+    }
+}
 
 /// Bring the window back from the tray, the taskbar or behind other windows.
 fn show_window(app: &AppHandle) {
@@ -533,7 +581,10 @@ pub fn run() {
                     None
                 }
             };
-            let start_hidden = autostarted && saved_ui.start_hidden && tray.is_some();
+            // Only stay hidden when a tray host will actually show the icon;
+            // otherwise the window would be unreachable.
+            let start_hidden =
+                autostarted && saved_ui.start_hidden && tray.is_some() && tray_host_visible();
 
             app.manage(AppState {
                 engine,

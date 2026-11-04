@@ -127,6 +127,7 @@ impl Settings {
             self.effects.set(name, value);
         }
         self.output_device = self.output_device.filter(|d| !d.is_empty());
+        self.preset = clean_preset(Some(self.preset));
         if !crate::i18n::SUPPORTED.contains(&self.ui.language.as_str()) {
             self.ui.language = "auto".into();
         }
@@ -137,6 +138,39 @@ impl Settings {
 /// Marks an exported file so an unrelated JSON file is rejected on import.
 const EXPORT_FORMAT: &str = "fxsound-linux-config";
 const EXPORT_VERSION: u32 = 1;
+/// A preset name is display text only: keep it short and printable, or fall
+/// back to "Custom".
+pub fn clean_preset(preset: Option<String>) -> String {
+    preset
+        .filter(|p| !p.is_empty() && p.len() <= 64 && !p.chars().any(char::is_control))
+        .unwrap_or_else(|| "Custom".into())
+}
+
+/// Write an exported file without ever leaving a half-written one behind:
+/// the text goes to a new sibling file first and replaces the target only
+/// once it is completely on disk.
+pub fn write_export(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let name = path
+        .file_name()
+        .ok_or_else(|| std::io::Error::other("no file name"))?
+        .to_string_lossy();
+    let tmp = path.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
+    let result = (|| {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
+        file.write_all(text.as_bytes())?;
+        file.sync_all()?;
+        std::fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    result
+}
+
 /// Error codes the page translates (see `src/i18n.js`).
 pub const ERR_NOT_CONFIG: &str = "error.not-config";
 pub const ERR_NEWER: &str = "error.newer";
@@ -398,6 +432,35 @@ mod export_tests {
     fn import_clamps_out_of_range_values() {
         let wild = export_json(&sample()).replace("6.5", "400.0");
         assert_eq!(import_json(&wild).unwrap().eq[0], 12.0);
+    }
+
+    #[test]
+    fn import_cleans_the_preset_name() {
+        let long = "x".repeat(200);
+        let file = export_json(&sample()).replace("Bass Boost", &long);
+        assert_eq!(import_json(&file).unwrap().preset, "Custom");
+        let file = export_json(&sample()).replace("Bass Boost", "bad\\u0007name");
+        assert_eq!(import_json(&file).unwrap().preset, "Custom");
+        assert_eq!(
+            import_json(&export_json(&sample())).unwrap().preset,
+            "Bass Boost"
+        );
+    }
+
+    #[test]
+    fn export_replaces_the_file_only_when_complete() {
+        let dir = std::env::temp_dir().join(format!("fxsound-export-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("fxsound-config.json");
+        std::fs::write(&target, "old").unwrap();
+        write_export(&target, "new").unwrap();
+        assert_eq!(std::fs::read_to_string(&target).unwrap(), "new");
+        // Only the target remains: the temporary file was renamed away.
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
+        // A failed write (missing directory) leaves nothing behind.
+        assert!(write_export(&dir.join("missing").join("x.json"), "y").is_err());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

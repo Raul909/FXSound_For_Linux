@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The visualizer does nothing while the window is hidden or minimized**, and draws at 30 fps (the data arrives at 20 Hz, so it looks the same).
 - Tauri 2.10 → 2.12 (required by the dialog and autostart plugins; npm and Rust packages kept on the same minor).
 
+
+## [1.2.0] - 2026-10-04
+
 ### Fixed
 - **The window no longer freezes a few seconds after launch ([#510](https://github.com/Raul909/FXSound_For_Linux/issues/510)).** Listing the output devices waited on the audio server from the UI thread, for a signal that never came, so every launch hung until the desktop offered to force-quit it — the `Killed` / exit code 137 in #511. The UI no longer talks to the audio server at all, every wait on the server has a time limit, and a stopped or restarting server now shows "Waiting for the audio server…" instead of freezing the window.
 - **No more doubled audio or feedback loop ([#511](https://github.com/Raul909/FXSound_For_Linux/issues/511)).** FXSound recorded what the speakers were playing and played its processed copy into the same speakers: you heard the original and the processed version on top of each other, and FXSound re-recorded its own output, so the sound echoed every couple of seconds and grew louder each time. FXSound now adds its own **FXSound** output device and makes it the default; applications play into it and FXSound plays the result on your real speakers or headphones — exactly once.

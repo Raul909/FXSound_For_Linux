@@ -137,7 +137,7 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 aria-valuemin={-12}
                 aria-valuemax={12}
                 aria-valuenow={value}
-                aria-valuetext={`${value > 0 ? '+' : ''}${value} decibels`}
+                aria-valuetext={t("eq.value", { value: `${value > 0 ? "+" : ""}${value}` })}
                 aria-disabled={disabled}
                 aria-orientation="vertical"
             >

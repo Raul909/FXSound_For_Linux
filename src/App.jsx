@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { call, subscribe } from "./tauri";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, INITIAL_PRESET, APP_VERSION } from "./constants";
@@ -37,6 +37,9 @@ export default function App() {
   const [tab, setTab] = useState("eq");
   const [uiInfo, setUiInfo] = useState(null);
   const [notice, setNotice] = useState(null);
+  // Bumped by every settings change; a slower `get_ui_info` reply that was
+  // started before a newer change is dropped instead of undoing it.
+  const uiSeq = useRef(0);
   // False while the window is hidden in the tray or minimized.
   const [visible, setVisible] = useState(() => document.visibilityState !== "hidden");
   // The backend resolves "auto" from the system locale and reports the result.
@@ -171,13 +174,15 @@ export default function App() {
    * there and remembers the choice for next time.
    */
   const updateUi = useCallback((ui) => {
+    uiSeq.current += 1;
     setUiInfo((prev) => (prev ? { ...prev, ui } : prev));
     call("set_ui_settings", { ui })
-      .then((lang) => lang && setUiInfo((prev) => (prev ? { ...prev, language: lang } : prev)))
+      .then((r) => r && setUiInfo((prev) => (prev ? { ...prev, language: r.language, next_renderer: r.next_renderer } : prev)))
       .catch(console.error);
   }, []);
 
   const changeAutostart = useCallback((enabled) => {
+    uiSeq.current += 1;
     call("set_autostart", { enabled })
       .then((now) => setUiInfo((prev) => (prev ? { ...prev, autostart: now } : prev)))
       .catch((err) => setNotice({ kind: "error", text: String(err) }));
@@ -193,13 +198,16 @@ export default function App() {
     call("import_settings")
       .then((s) => {
         if (!s) return;
+        const seq = ++uiSeq.current;
         const known = s.preset === "Custom" || PRESET_EQ[s.preset];
         setPowered(s.powered);
         setPreset(known ? s.preset : "Custom");
         setEq([...s.eq]);
         setFx({ ...PRESET_FX.Flat, ...s.effects });
         setUiInfo((prev) => (prev ? { ...prev, ui: s.ui } : prev));
-        call("get_ui_info").then(setUiInfo).catch(() => {});
+        call("get_ui_info")
+          .then((info) => uiSeq.current === seq && setUiInfo(info))
+          .catch(() => {});
         setNotice({ kind: "ok", key: "set.imported" });
       })
       .catch((err) => setNotice({ kind: "error", text: String(err) }));
