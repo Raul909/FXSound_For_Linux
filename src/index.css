@@ -49,22 +49,13 @@
 
 /* ---- Keyframes ---- */
 
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 18px rgba(230, 52, 98, 0.5), 0 4px 14px rgba(213, 21, 53, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 28px rgba(230, 52, 98, 0.7), 0 4px 20px rgba(213, 21, 53, 0.5);
-  }
-}
-
-@keyframes activeGlow {
-  0%, 100% {
-    box-shadow: 0 0 6px rgba(40, 202, 66, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 12px rgba(40, 202, 66, 0.8);
-  }
+/* The glows pulse by fading a layer that already carries the strong shadow
+   over the base one. Animating box-shadow itself repaints the window on every
+   frame; animating opacity is done by the compositor, so an idle window costs
+   next to nothing. */
+@keyframes glowPulse {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: 1; }
 }
 
 /* ---- Reset ---- */
@@ -172,9 +163,21 @@ select option {
 }
 
 .power-btn--on {
+  position: relative;
   background: radial-gradient(circle at 35% 30%, var(--accent-light), #c4122e);
   border: 2px solid rgba(230, 52, 98, 0.7);
-  animation: pulseGlow 2.5s ease-in-out infinite;
+  box-shadow: 0 0 18px rgba(230, 52, 98, 0.5), 0 4px 14px rgba(213, 21, 53, 0.3);
+}
+
+.power-btn--on::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  box-shadow: 0 0 28px rgba(230, 52, 98, 0.7), 0 4px 20px rgba(213, 21, 53, 0.5);
+  pointer-events: none;
+  will-change: opacity;
+  animation: glowPulse 2.5s ease-in-out infinite;
 }
 
 .power-btn--on:hover {
@@ -596,8 +599,20 @@ select option {
 }
 
 .status-bar__dot--active {
+  position: relative;
   background: var(--green);
-  animation: activeGlow 2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(40, 202, 66, 0.5);
+}
+
+.status-bar__dot--active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(40, 202, 66, 0.8);
+  pointer-events: none;
+  will-change: opacity;
+  animation: glowPulse 2s ease-in-out infinite;
 }
 
 .status-bar__text {
@@ -656,5 +671,155 @@ select option {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Settings Tab ---- */
+
+/* Same height as the EQ and effects pages, so switching tabs never moves
+   the status bar. */
+.content--settings {
+  padding: 10px 20px 12px;
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-panel--loading {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 16px 4px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 4px;
+  min-height: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-row--disabled {
+  opacity: 0.45;
+}
+
+.settings-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.settings-row__hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.settings-row__select {
+  flex: 0 0 190px;
+}
+
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  border: 1px solid var(--border-hover);
+  background: var(--bg-deep);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.switch--on {
+  background: var(--accent-dark);
+  border-color: var(--accent);
+}
+
+.switch--on .switch__knob {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+.settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.settings-btn {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hover);
+  background: var(--bg-elevated);
+  color: var(--text-light);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.settings-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.settings-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.settings-notice {
+  margin: 4px 4px 0;
+  font-size: 10px;
+  line-height: 12px;
+  color: var(--text-muted);
+  min-height: 12px;
+}
+
+.settings-notice--ok {
+  color: var(--green);
+}
+
+.settings-notice--error {
+  color: var(--accent-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch__knob {
+    transition: none;
   }
 }

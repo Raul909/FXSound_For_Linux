@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { call, subscribe } from "./tauri";
 
 import { PRESETS, PRESET_EQ, PRESET_FX, EQ_BANDS, INITIAL_PRESET, APP_VERSION } from "./constants";
 import EQBand from "./components/EQBand";
 import EffectSlider from "./components/EffectSlider";
 import Visualizer from "./components/Visualizer";
+import SettingsPanel from "./components/SettingsPanel";
+import { I18nContext, makeT, translateMessage } from "./i18n";
 
 // Helper wrappers to give stable references via useCallback at the child level
 // Wrapped in React.memo to prevent unnecessary re-renders when other App state changes
@@ -33,6 +35,39 @@ export default function App() {
   // Devices are real sinks ({ name, description }) — never invented ones.
   const [audio, setAudio] = useState({ state: "starting", message: null, devices: [], output: null });
   const [tab, setTab] = useState("eq");
+  const [uiInfo, setUiInfo] = useState(null);
+  const [notice, setNotice] = useState(null);
+  // Bumped by every settings change; a slower `get_ui_info` reply that was
+  // started before a newer change is dropped instead of undoing it.
+  const uiSeq = useRef(0);
+  // False while the window is hidden in the tray or minimized.
+  const [visible, setVisible] = useState(() => document.visibilityState !== "hidden");
+  // The backend resolves "auto" from the system locale and reports the result.
+  const language = uiInfo?.language ?? "en";
+  const t = useMemo(() => makeT(language), [language]);
+  useEffect(() => {
+    document.documentElement.lang = language === "zh" ? "zh-CN" : language;
+  }, [language]);
+
+  // Window options, the rendering in use, and telling the backend the page
+  // loaded (which confirms an automatic GPU choice works on this machine).
+  useEffect(() => {
+    call("get_ui_info").then(setUiInfo).catch(() => {});
+    call("ui_ready").catch(() => {});
+  }, []);
+
+  // Power toggled from the tray menu, and window hidden/shown via the tray.
+  useEffect(() => {
+    const stopPower = subscribe("power-changed", (enabled) => setPowered(enabled));
+    const stopWindow = subscribe("window-visibility", (shown) => setVisible(shown));
+    const onVisibility = () => setVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stopPower();
+      stopWindow();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   // Restore the last session. The backend has already applied these values to
   // the engine before any audio flowed; this only brings the controls in line.
@@ -138,6 +173,46 @@ export default function App() {
    * Play to a different output device. The backend moves FXSound's output
    * there and remembers the choice for next time.
    */
+  const updateUi = useCallback((ui) => {
+    uiSeq.current += 1;
+    setUiInfo((prev) => (prev ? { ...prev, ui } : prev));
+    call("set_ui_settings", { ui })
+      .then((r) => r && setUiInfo((prev) => (prev ? { ...prev, language: r.language, next_renderer: r.next_renderer } : prev)))
+      .catch(console.error);
+  }, []);
+
+  const changeAutostart = useCallback((enabled) => {
+    uiSeq.current += 1;
+    call("set_autostart", { enabled })
+      .then((now) => setUiInfo((prev) => (prev ? { ...prev, autostart: now } : prev)))
+      .catch((err) => setNotice({ kind: "error", text: String(err) }));
+  }, []);
+
+  const exportConfig = useCallback(() => {
+    call("export_settings")
+      .then((saved) => saved && setNotice({ kind: "ok", key: "set.exported" }))
+      .catch((err) => setNotice({ kind: "error", text: String(err) }));
+  }, []);
+
+  const importConfig = useCallback(() => {
+    call("import_settings")
+      .then((s) => {
+        if (!s) return;
+        const seq = ++uiSeq.current;
+        const known = s.preset === "Custom" || PRESET_EQ[s.preset];
+        setPowered(s.powered);
+        setPreset(known ? s.preset : "Custom");
+        setEq([...s.eq]);
+        setFx({ ...PRESET_FX.Flat, ...s.effects });
+        setUiInfo((prev) => (prev ? { ...prev, ui: s.ui } : prev));
+        call("get_ui_info")
+          .then((info) => uiSeq.current === seq && setUiInfo(info))
+          .catch(() => {});
+        setNotice({ kind: "ok", key: "set.imported" });
+      })
+      .catch((err) => setNotice({ kind: "error", text: String(err) }));
+  }, []);
+
   const changeDevice = useCallback((sinkName) => {
     setAudio((prev) => ({ ...prev, output: sinkName }));
     call("set_output_device", { sink: sinkName || null }).catch(console.error);
@@ -150,51 +225,50 @@ export default function App() {
   // name but displayed by their human-readable description.
   const dropdowns = useMemo(() => [
     {
-      label: "PRESET",
+      id: "preset",
+      label: t("header.preset"),
       value: preset,
       options: [
-        ...PRESETS.map((name) => ({ value: name, label: name })),
+        ...PRESETS.map((name) => ({ value: name, label: t(`preset.${name}`) })),
         // Shown only once the user has moved a slider off a named preset.
-        ...(preset === "Custom" ? [{ value: "Custom", label: "Custom" }] : []),
+        ...(preset === "Custom" ? [{ value: "Custom", label: t("preset.Custom") }] : []),
       ],
       onChange: applyPreset,
       // Like the sliders, presets only apply while processing is on.
       disabled: !powered,
     },
     {
-      label: "OUTPUT DEVICE",
+      id: "output",
+      label: t("header.output"),
       value: audio.output ?? "",
       options: audio.devices.length
         ? audio.devices.map((d) => ({ value: d.name, label: d.description }))
-        : [{ value: "", label: audio.state === "starting" ? "Detecting…" : "No output device" }],
+        : [{ value: "", label: audio.state === "starting" ? t("devices.detecting") : t("devices.none") }],
       onChange: changeDevice,
       // Audio still flows through FXSound when bypassed, so the device can
       // always be changed.
       disabled: !audio.devices.length,
     },
-  ], [preset, powered, audio, applyPreset, changeDevice]);
+  ], [preset, powered, audio, applyPreset, changeDevice, t]);
 
   // Effect sliders with display labels and their keys in PRESET_FX
-  const effectSliders = useMemo(() => [
-    { label: "Fidelity", key: "fidelity" },
-    { label: "Ambiance", key: "ambiance" },
-    { label: "Dynamic Boost", key: "dynamic" },
-    { label: "3D Surround", key: "surround" },
-    { label: "HyperBass", key: "bass" },
-  ], []);
+  const effectSliders = useMemo(
+    () => ["fidelity", "ambiance", "dynamic", "surround", "bass"].map((key) => ({ label: t(`fx.${key}`), key })),
+    [t],
+  );
 
   // What the status bar reports: the device in use, or why there is none.
   const statusInfo = useMemo(() => {
-    if (audio.state === "error") return audio.message || "Audio unavailable";
+    if (audio.state === "error") return translateMessage(t, audio.message) || t("info.unavailable");
     const name = audio.devices.find((d) => d.name === audio.output)?.description;
-    if (!name) return audio.state === "starting" ? "Connecting…" : "No output device";
+    if (!name) return audio.state === "starting" ? t("info.connecting") : t("devices.none");
     return `${name} · 48kHz`;
-  }, [audio]);
+  }, [audio, t]);
 
   const statusLabel =
-    audio.state === "error" ? "OFFLINE"
-      : audio.state === "starting" ? "STARTING"
-        : powered ? "ACTIVE" : "BYPASSED";
+    audio.state === "error" ? t("status.offline")
+      : audio.state === "starting" ? t("status.starting")
+        : powered ? t("status.active") : t("status.bypassed");
   const statusMod =
     audio.state === "error" ? "error"
       : audio.state === "running" && powered ? "active" : null;
@@ -202,6 +276,7 @@ export default function App() {
   // ---------- Render ----------
 
   return (
+    <I18nContext.Provider value={t}>
     <div className="app-container">
       <div className="app-window">
 
@@ -211,8 +286,8 @@ export default function App() {
             <button
               className={`power-btn ${powered ? "power-btn--on" : "power-btn--off"}`}
               onClick={togglePower}
-              aria-label="Toggle Power"
-              title={powered ? "Turn Power Off" : "Turn Power On"}
+              aria-label={t("power.toggle")}
+              title={powered ? t("power.turnOff") : t("power.turnOn")}
               aria-pressed={powered}
             >
               <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill={powered ? "#fff" : "#555"}>
@@ -225,17 +300,17 @@ export default function App() {
           </div>
 
           <div className="header__dropdowns">
-            {dropdowns.map(({ label, value: val, options, onChange, disabled }) => (
-              <div key={label} className="dropdown">
-                <div id={`dropdown-label-${label.replace(/\s+/g, "-")}`} className="dropdown__label">{label}</div>
+            {dropdowns.map(({ id, label, value: val, options, onChange, disabled }) => (
+              <div key={id} className="dropdown">
+                <div id={`dropdown-label-${id}`} className="dropdown__label">{label}</div>
                 <div className="dropdown__wrapper">
                   <select
                     value={val}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={disabled}
                     className="dropdown__select"
-                    title={disabled && !powered ? "Power on to adjust" : undefined}
-                    aria-labelledby={`dropdown-label-${label.replace(/\s+/g, "-")}`}
+                    title={disabled && !powered ? t("power.needed") : undefined}
+                    aria-labelledby={`dropdown-label-${id}`}
                   >
                     {options.map(({ value: optValue, label: optLabel }) => (
                       <option key={optValue} value={optValue}>{optLabel}</option>
@@ -251,13 +326,14 @@ export default function App() {
         </div>
 
         {/* ---- Visualizer ---- */}
-        <Visualizer powered={powered} />
+        <Visualizer powered={powered} active={visible && (uiInfo?.ui.visualizer ?? true)} />
 
         {/* ---- Tab Buttons ---- */}
-        <div className="tabs" role="tablist" aria-label="Settings pages">
+        <div className="tabs" role="tablist" aria-label={t("tabs.label")}>
           {[
-            { id: "eq", label: "EQUALIZER" },
-            { id: "fx", label: "EFFECTS" },
+            { id: "eq", label: t("tabs.eq") },
+            { id: "fx", label: t("tabs.fx") },
+            { id: "settings", label: t("tabs.settings") },
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -269,7 +345,9 @@ export default function App() {
               onKeyDown={(e) => {
                 if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
                   e.preventDefault();
-                  const newTab = tab === "eq" ? "fx" : "eq";
+                  const order = ["eq", "fx", "settings"];
+                  const step = e.key === "ArrowRight" ? 1 : order.length - 1;
+                  const newTab = order[(order.indexOf(tab) + step) % order.length];
                   setTab(newTab);
                   document.getElementById(`tab-${newTab}`)?.focus();
                 }
@@ -284,8 +362,8 @@ export default function App() {
 
         {/* ---- Tab Content ---- */}
         <div
-          className="content"
-          style={{
+          className={`content ${tab === "settings" ? "content--settings" : ""}`}
+          style={tab === "settings" ? undefined : {
             opacity: powered ? 1 : 0.4,
             pointerEvents: powered ? "auto" : "none",
           }}
@@ -307,9 +385,23 @@ export default function App() {
               </div>
               <div className="eq-footer">
                 <span className="eq-footer__label">-12 dB</span>
-                <span className="eq-footer__title">10-Band Parametric EQ</span>
+                <span className="eq-footer__title">{t("eq.title")}</span>
                 <span className="eq-footer__label">+12 dB</span>
               </div>
+            </div>
+          )}
+
+          {/* Settings Tab: usable even with effects off */}
+          {tab === "settings" && (
+            <div id="panel-settings" role="tabpanel" aria-labelledby="tab-settings">
+              <SettingsPanel
+                info={uiInfo}
+                onUi={updateUi}
+                onAutostart={changeAutostart}
+                onExport={exportConfig}
+                onImport={importConfig}
+                notice={notice}
+              />
             </div>
           )}
 
@@ -340,12 +432,13 @@ export default function App() {
           </div>
           <span className="status-bar__info" title={statusInfo}>{statusInfo}</span>
           <span className="status-bar__preset">
-            {preset.toUpperCase()}
+            {(PRESET_EQ[preset] || preset === "Custom" ? t(`preset.${preset}`) : preset).toUpperCase()}
             <span className="status-bar__version">v{APP_VERSION}</span>
           </span>
         </div>
 
       </div>
     </div>
+    </I18nContext.Provider>
   );
 }

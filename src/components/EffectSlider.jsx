@@ -1,4 +1,5 @@
 import { useRef, memo } from "react";
+import { useT } from "../i18n";
 
 /**
  * A horizontal effect slider.
@@ -13,6 +14,7 @@ import { useRef, memo } from "react";
  *   disabled — whether the slider is interactive
  */
 const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabled }) {
+    const t = useT();
     const trackRef = useRef(null);
 
     // Convert a mouse X position to an effect value (0–100)
@@ -119,7 +121,7 @@ const EffectSlider = memo(function EffectSlider({ label, value, onChange, disabl
                 onKeyDown={handleKeyDown}
                 className="effect-slider__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? t("power.needed") : undefined}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
                 aria-labelledby={`label-${label.replace(/\s+/g, '-')}`}
