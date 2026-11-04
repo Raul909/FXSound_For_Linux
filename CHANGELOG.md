@@ -6,7 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.2.0] - 2026-10-04
+## [Unreleased]
+
+### Added
+- **System tray icon.** Show or hide the window, turn effects on or off and quit from the tray. Closing the window keeps FXSound running in the tray (can be turned off); without a tray on the desktop, closing quits as before.
+- **Start with the system**, optionally hidden in the tray, from the new **Settings** tab (an XDG autostart entry; AppImage path handled).
+- **Export and import the configuration** (EQ, effects, preset and window options) as a JSON file. The output device is left out, since device names belong to one machine; files are validated and their values clamped on import.
+- **Visualizer switch** in Settings. Off stops all visualizer work, not only the drawing.
+- **Interface in 4 languages: English, Portuguese, Spanish and Chinese (Simplified)**, covering the window, the tray menu and the file dialogs. Automatic follows `LC_ALL` / `LC_MESSAGES` / `LANG`; a Language option in Settings overrides it and applies immediately. Known audio-status messages and import errors are translated too.
+
+### Changed
+- **The window renders on the GPU where that is known to work** (a Mesa render node under X11, no VM, no NVIDIA driver, not Wayland), instead of always in software. Software rendering kept a CPU core busy just painting the visualizer. Every GPU launch is guarded: if one does not reach the UI, the next launch records it and renders in software until the option is changed. Settings shows which renderer is in use and why, and lets you force either one. `LIBGL_ALWAYS_SOFTWARE` still overrides everything.
+- **The visualizer does nothing while the window is hidden or minimized**, and draws at 30 fps (the data arrives at 20 Hz, so it looks the same).
+- Tauri 2.10 → 2.12 (required by the dialog and autostart plugins; npm and Rust packages kept on the same minor).
 
 ### Fixed
 - **The window no longer freezes a few seconds after launch ([#510](https://github.com/Raul909/FXSound_For_Linux/issues/510)).** Listing the output devices waited on the audio server from the UI thread, for a signal that never came, so every launch hung until the desktop offered to force-quit it — the `Killed` / exit code 137 in #511. The UI no longer talks to the audio server at all, every wait on the server has a time limit, and a stopped or restarting server now shows "Waiting for the audio server…" instead of freezing the window.

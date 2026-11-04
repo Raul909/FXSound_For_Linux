@@ -12,7 +12,9 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "FXSound for Linux",
+        "visible": false,
         "width": 520,
         "height": 690,
         "minWidth": 420,

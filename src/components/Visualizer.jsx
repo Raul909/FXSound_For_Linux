@@ -4,6 +4,9 @@ import { call } from "../tauri";
 const BAR_COUNT = 32;
 const CANVAS_HEIGHT = 120;
 const POLL_INTERVAL_MS = 50;
+// Bars ease between 20 Hz data updates, so 30 fps looks the same as 60 and
+// halves the drawing work.
+const FRAME_INTERVAL_MS = 1000 / 30;
 
 // Canvas.roundRect is missing on WebKitGTK older than 2.40, which still ships
 // on long-support distros. Calling it there throws on every animation frame and
@@ -21,8 +24,10 @@ const SUPPORTS_ROUND_RECT =
  *
  * Props:
  *   powered — when false, bars fall to the floor and polling pauses
+ *   active  — when false (visualizer turned off, window hidden or minimized)
+ *             nothing runs at all: no polling, no animation frames
  */
-const Visualizer = React.memo(function Visualizer({ powered }) {
+const Visualizer = React.memo(function Visualizer({ powered, active = true }) {
     const canvasRef = useRef(null);
     const targetData = useRef(new Float32Array(BAR_COUNT));
     const displayData = useRef(new Float32Array(BAR_COUNT));
@@ -172,6 +177,15 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
         let pollTimeout = null;
         const lastTimeRef = { current: performance.now() };
 
+        if (!active) {
+            // Leave a resting picture and do no further work until reactivated.
+            targetData.current.fill(0);
+            displayData.current.fill(0);
+            needsRepaintRef.current = true;
+            drawFrame(performance.now(), lastTimeRef);
+            return undefined;
+        }
+
         // Poll the engine's FFT output. This is the only real data source: the
         // bars must reflect the audio actually being processed.
         function pollBackend() {
@@ -234,9 +248,13 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
 
         init();
 
+        let lastDraw = 0;
         function loop(now) {
             if (cancelled) return;
-            drawFrame(now, lastTimeRef);
+            if (now - lastDraw >= FRAME_INTERVAL_MS) {
+                lastDraw = now;
+                drawFrame(now, lastTimeRef);
+            }
             animFrameRef.current = requestAnimationFrame(loop);
         }
         animFrameRef.current = requestAnimationFrame(loop);
@@ -250,7 +268,7 @@ const Visualizer = React.memo(function Visualizer({ powered }) {
             if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
             window.removeEventListener("resize", handleResize);
         };
-    }, [drawFrame]);
+    }, [drawFrame, active]);
 
     return (
         <div className="visualizer" aria-hidden="true">

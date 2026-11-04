@@ -1,4 +1,5 @@
 import { useRef, memo } from "react";
+import { useT } from "../i18n";
 
 /**
  * A single vertical EQ band slider.
@@ -13,6 +14,7 @@ import { useRef, memo } from "react";
  *   disabled — whether the slider is interactive
  */
 const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
+    const t = useT();
     const trackRef = useRef(null);
 
     // Convert a mouse Y position to a gain value (-12 to +12 dB)
@@ -128,10 +130,10 @@ const EQBand = memo(function EQBand({ freq, value, onChange, disabled }) {
                 onKeyDown={handleKeyDown}
                 className="eq-band__track"
                 style={{ cursor: disabled ? "default" : "pointer" }}
-                title={disabled ? "Power on to adjust" : undefined}
+                title={disabled ? t("power.needed") : undefined}
                 role="slider"
                 tabIndex={disabled ? -1 : 0}
-                aria-label={`${freq} Hz equalizer band`}
+                aria-label={t("eq.band", { freq })}
                 aria-valuemin={-12}
                 aria-valuemax={12}
                 aria-valuenow={value}
